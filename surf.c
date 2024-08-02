@@ -147,6 +147,7 @@ typedef struct Client {
 	const char *title, *overtitle, *targeturi;
 	const char *needle;
 	struct Client *next;
+	GList *tabs;
 } Client;
 
 typedef struct {
@@ -181,6 +182,11 @@ typedef struct {
 	char *file;
 	regex_t re;
 } SiteSpecific;
+
+typedef struct {
+	char *title;
+	char *uri;
+} Tab;
 
 /* Surf */
 static void usage(void);
@@ -347,6 +353,72 @@ static ParamName loadfinished[] = {
 
 /* configuration, allows nested code to access above variables */
 #include "config.h"
+
+
+// Function to create a new tab
+Tab* create_tab(const gchar *title, const gchar *uri) {
+    Tab *tab = g_malloc(sizeof(Tab));
+    tab->title = g_strdup(title);
+    tab->uri = g_strdup(uri);
+    return tab;
+}
+
+// Function to free a tab
+void free_tab(Tab *tab) {
+    g_free(tab->title);
+    g_free(tab->uri);
+    g_free(tab);
+}
+
+// Function to add a tab to the client's tab list
+void add_tab(Client *client, Tab *tab) {
+    client->tabs = g_list_append(client->tabs, tab);
+}
+
+// Function to remove a tab from the client's tab list
+void remove_tab(Client *client, Tab *tab) {
+    client->tabs = g_list_remove(client->tabs, tab);
+    free_tab(tab);
+}
+
+// Function to free all tabs
+void free_all_tabs(Client *client) {
+    g_list_free_full(client->tabs, (GDestroyNotify) free_tab);
+    client->tabs = NULL;
+}
+
+GtkWidget* create_tab_bar_view(GList *tabs) {
+    GtkWidget *tab_bar = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 4); //gtk_event_box_new();
+    GdkRGBA black = { 0.138, 0.138, 0.138, 1 };
+    gtk_widget_override_background_color(tab_bar, GTK_STATE_FLAG_NORMAL, &black);
+    gtk_widget_set_size_request(tab_bar, -1, 28);  // Set the height of the black bar
+
+	//int num_tabs = g_list_length(tabs);
+    //int num_parts = MAX(num_tabs + 1, 6);  // Determine the number of parts (max(6, num_tabs + 1))
+
+    //gtk_box_set_homogeneous(GTK_BOX(tab_bar), TRUE);  // Make the box's children evenly spaced
+
+    // Add tabs to the tab bar
+    for (GList *l = tabs; l != NULL; l = l->next) {
+        Tab *tab = (Tab *)l->data;
+        GtkWidget *label = gtk_label_new(tab->title);
+		
+		gtk_label_set_xalign(GTK_LABEL(label), 0.0);
+		gtk_widget_set_margin_start(label, 5);
+        // Set the size request for each tab to ensure they are evenly distributed
+        //gtk_widget_set_size_request(label, -1, -1);  // Default size request for label
+        gtk_box_pack_start(GTK_BOX(tab_bar), label, TRUE, TRUE, 0);  // Pack the label into the box
+        gtk_widget_show(label);
+    }
+
+    // Add an empty spacer to ensure space for the last tab
+    GtkWidget *spacer = gtk_label_new("+");  // Create an empty label as a spacer
+    gtk_widget_set_size_request(spacer, -1, -1);  // Default size request for spacer
+    gtk_box_pack_start(GTK_BOX(tab_bar), spacer, TRUE, TRUE, 0);
+    gtk_widget_show(spacer);
+
+    return tab_bar;
+}
 
 void
 die(const char *errstr, ...)
@@ -596,6 +668,12 @@ newclient(Client *rc)
 
 	c->progress = 100;
 	c->view = newview(c, rc ? rc->view : NULL);
+
+	// Initialize the tabs with "General" and "Kenobi"
+    Tab *tab1 = create_tab("General", "about:blank");
+    Tab *tab2 = create_tab("Kenobi", "about:blank");
+    add_tab(c, tab1);
+    add_tab(c, tab2);
 
 	return c;
 }
@@ -1125,6 +1203,9 @@ destroyclient(Client *c)
 		p->next = c->next;
 	else
 		clients = c->next;
+
+	free_all_tabs(c);
+	
 	free(c);
 }
 
@@ -1427,14 +1508,6 @@ winevent(GtkWidget *w, GdkEvent *e, Client *c)
 	return FALSE;
 }
 
-GtkWidget* create_tab_bar() {
-    GtkWidget *black_bar = gtk_event_box_new();
-    GdkRGBA black = { 0.138, 0.138, 0.138, 1 };
-    gtk_widget_override_background_color(black_bar, GTK_STATE_FLAG_NORMAL, &black);
-    gtk_widget_set_size_request(black_bar, -1, 28);  // Set the height of the black bar
-    return black_bar;
-}
-
 void
 showview(WebKitWebView *v, Client *c)
 {
@@ -1442,7 +1515,7 @@ showview(WebKitWebView *v, Client *c)
 	GdkWindow *gwin;
 
 	// Create the black bar using the separate function
-    GtkWidget *tab_bar = create_tab_bar();
+    GtkWidget *tab_bar = create_tab_bar_view(c->tabs);
 
     // Create a container to hold the black bar and the WebKitWebView
     GtkWidget *vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
