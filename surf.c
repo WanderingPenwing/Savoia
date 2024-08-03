@@ -293,6 +293,13 @@ static void clicknavigate(Client *c, const Arg *a, WebKitHitTestResult *h);
 static void clicknewwindow(Client *c, const Arg *a, WebKitHitTestResult *h);
 static void clickexternplayer(Client *c, const Arg *a, WebKitHitTestResult *h);
 
+static void switch_tab(Client *c, const Arg *a);
+static void move_tab(Client *c, const Arg *a);
+static void new_tab(Client *c, const Arg *a);
+static void close_tab(Client *c, const Arg *a);
+
+static void fill_tab_bar(Client *c);
+
 static char winid[64];
 static char togglestats[11];
 static char pagestats[2];
@@ -357,14 +364,6 @@ static ParamName loadfinished[] = {
 #include "config.h"
 
 
-// Function to create a new tab
-Tab* create_tab(const gchar *title, const gchar *uri) {
-	Tab *tab = g_malloc(sizeof(Tab));
-	tab->title = g_strdup(title);
-	tab->uri = g_strdup(uri);
-	return tab;
-}
-
 // Function to free a tab
 void free_tab(Tab *tab) {
 	g_free(tab->title);
@@ -373,7 +372,10 @@ void free_tab(Tab *tab) {
 }
 
 // Function to add a tab to the clients tab list
-void add_tab(Client *client, Tab *tab) {
+void add_tab(Client *client, const gchar *uri) {
+	Tab *tab = g_malloc(sizeof(Tab));
+	tab->title = g_strdup("untitled");
+	tab->uri = g_strdup(uri);
 	client->tabs = g_list_append(client->tabs, tab);
 }
 
@@ -382,6 +384,12 @@ void remove_tab(Client *client, Tab *tab) {
 	client->tabs = g_list_remove(client->tabs, tab);
 	free_tab(tab);
 }
+
+void update_tab_bar(Client *c) {
+	gtk_grid_remove_row(c->tab_bar, 0);
+	fill_tab_bar(c);
+}
+
 
 // Function to free all tabs
 void free_all_tabs(Client *client) {
@@ -393,20 +401,33 @@ void tab_bar_click(GtkWidget *w, GdkEvent *e, Client *c) {
 	g_print("yay");
 }
 
-GtkWidget* create_tab_bar_view(Client *c) {
-	g_print("hello there\n\n");
-	GdkRGBA bg_color, fg_color;
-	gdk_rgba_parse(&bg_color, tab_bar_color[0]);
-	gdk_rgba_parse(&fg_color, tab_bar_color[1]);
+void switch_tab(Client *c, const Arg *a) {
+	g_print("switch");
+}
 
-	GtkWidget *tab_bar = gtk_grid_new(); 
-	gtk_widget_override_background_color(tab_bar, GTK_STATE_FLAG_NORMAL, &bg_color);
-	gtk_widget_set_size_request(tab_bar, -1, tab_bar_height);  // Set the height of the black bar
-	gtk_grid_set_column_spacing(tab_bar, 10);
-	gtk_widget_set_events(GTK_GRID(tab_bar), GDK_BUTTON_PRESS_MASK);
-	
-	//int num_tabs = g_list_length(c->tabs);
-	//int num_parts = MAX(num_tabs + 1, 6);  // Determine the number of parts (max(6, num_tabs + 1))
+void move_tab(Client *c, const Arg *a) {
+	g_print("move");
+}
+
+void close_tab(Client *c, const Arg *a) {
+	if (g_list_length(c->tabs) == 1) {
+		g_print("tried to close last tab");
+		return;
+	}
+	remove_tab(c, g_list_nth_data(c->tabs, c->selected_tab));
+	c->selected_tab -= 1;
+	update_tab_bar(c);
+}
+
+void new_tab(Client *c, const Arg *a) {
+	add_tab(c, "about:blank");
+	c->selected_tab = g_list_length(c->tabs) - 1;
+	update_tab_bar(c);
+}
+
+void fill_tab_bar(Client *c) {
+	GdkRGBA fg_color;
+	gdk_rgba_parse(&fg_color, tab_bar_color[1]);
 	
 	int tab_index = 0;
 	// Add tabs to the tab bar
@@ -421,21 +442,35 @@ GtkWidget* create_tab_bar_view(Client *c) {
 		if (tab_index == c->selected_tab) {
 			gtk_widget_override_background_color(label, GTK_STATE_FLAG_NORMAL, &fg_color);
 		}
-		gtk_grid_attach_next_to(GTK_GRID(tab_bar), label, NULL, GTK_POS_RIGHT, 1, 1);  // Pack the label into the box
+		gtk_grid_attach_next_to(GTK_GRID(c->tab_bar), label, NULL, GTK_POS_RIGHT, 1, 1);  // Pack the label into the box
 		gtk_widget_show(label);
 		
 		tab_index++;
 	}
-
-	// Add an empty spacer to ensure space for the last tab
-	GtkWidget *new_tab = gtk_label_new("+");  // Create an empty label as a spacer
-	gtk_grid_attach_next_to(GTK_GRID(tab_bar), new_tab, NULL, GTK_POS_RIGHT, 1, 1);
-	gtk_widget_show(new_tab);
 	
-	g_signal_connect(G_OBJECT(tab_bar), "button-release-event",
-                     G_CALLBACK(tab_bar_click), c);
+	GtkWidget *new_tab = gtk_label_new("+");  // Create an empty label as a spacer
+	gtk_grid_attach_next_to(GTK_GRID(c->tab_bar), new_tab, NULL, GTK_POS_RIGHT, 1, 1);
+	gtk_widget_show(new_tab);
+}
 
-	return tab_bar;
+void create_tab_bar(Client *c) {
+	g_print("hello there\n\n");
+	GdkRGBA bg_color;
+	gdk_rgba_parse(&bg_color, tab_bar_color[0]);
+
+	c->tab_bar = gtk_grid_new(); 
+	gtk_widget_override_background_color(c->tab_bar, GTK_STATE_FLAG_NORMAL, &bg_color);
+	gtk_widget_set_size_request(c->tab_bar, -1, tab_bar_height);  // Set the height of the black bar
+	gtk_grid_set_column_spacing(c->tab_bar, 10);
+	gtk_widget_set_events(GTK_GRID(c->tab_bar), GDK_BUTTON_PRESS_MASK);
+	
+	//int num_tabs = g_list_length(c->tabs);
+	//int num_parts = MAX(num_tabs + 1, 6);  // Determine the number of parts (max(6, num_tabs + 1))
+	
+	fill_tab_bar(c);	
+	
+	g_signal_connect(G_OBJECT(c->tab_bar), "button-release-event",
+					 G_CALLBACK(tab_bar_click), c);
 }
 
 void
@@ -686,14 +721,10 @@ newclient(Client *rc)
 
 	c->progress = 100;
 	
-	// Initialize the tabs with "General" and "Kenobi"
-	Tab *tab1 = create_tab("General", "about:blank");
-	Tab *tab2 = create_tab("Kenobi", "about:blank");
-	add_tab(c, tab1);
-	add_tab(c, tab2);
+	add_tab(c, "about:blank");
 	c->selected_tab = 0;
 	
-	c->tab_bar = create_tab_bar_view(c);
+	create_tab_bar(c);
 	
 	c->view = newview(c, rc ? rc->view : NULL);
 
