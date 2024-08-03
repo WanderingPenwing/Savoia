@@ -449,17 +449,9 @@ void fill_tab_bar(Client *c) {
 	gdk_rgba_parse(&fg_color, tab_bar_color[1]);
 	
 	
-	GtkAllocation allocation;
-    gtk_widget_get_allocation(GTK_WIDGET(c->win), &allocation);
-    int width = allocation.width;
-	
-	int tab_width;
-	
-	if (width < 10000) {
-		tab_width = width/MAX(4, g_list_length(c->tabs) + 1);
-	} else {
-		tab_width = 210;
-	}
+	//GtkAllocation allocation;
+    //gtk_widget_get_allocation(GTK_WIDGET(c->win), &allocation);
+    //int width = allocation.width;
 	
 	int tab_index = 0;
 	// Add tabs to the tab bar
@@ -473,7 +465,7 @@ void fill_tab_bar(Client *c) {
 		gtk_label_set_xalign(GTK_LABEL(label), 0.0);
 		gtk_widget_set_valign(label, GTK_ALIGN_CENTER);
 		
-		gtk_widget_set_size_request(label, tab_width, tab_bar_height);
+		gtk_widget_set_size_request(label, -1, tab_bar_height);
 		
 		gtk_label_set_ellipsize(GTK_LABEL(label), PANGO_ELLIPSIZE_END); //if too long cut it
 		
@@ -486,9 +478,17 @@ void fill_tab_bar(Client *c) {
 		tab_index++;
 	}
 	
-	GtkWidget *new_tab = gtk_label_new("  +");  // Create an empty label as a spacer
+	GtkWidget *new_tab = gtk_label_new("  +"); 
+	gtk_label_set_xalign(GTK_LABEL(new_tab), 0.0);
 	gtk_grid_attach_next_to(GTK_GRID(c->tab_bar), new_tab, NULL, GTK_POS_RIGHT, 1, 1);
+	
 	gtk_widget_show(new_tab);
+	
+	for (int i = g_list_length(c->tabs) + 1; i < 4; i++) {
+		GtkWidget *spacing = gtk_label_new("");  // Create an empty label as a spacer
+		gtk_grid_attach_next_to(GTK_GRID(c->tab_bar), spacing, NULL, GTK_POS_RIGHT, 1, 1);
+		gtk_widget_show(spacing);
+	}
 }
 
 void create_tab_bar(Client *c) {
@@ -499,6 +499,7 @@ void create_tab_bar(Client *c) {
 	gtk_widget_override_background_color(c->tab_bar, GTK_STATE_FLAG_NORMAL, &bg_color);
 	gtk_widget_set_size_request(c->tab_bar, -1, tab_bar_height);  // Set the height of the black bar
 	gtk_widget_set_events(GTK_GRID(c->tab_bar), GDK_BUTTON_PRESS_MASK);
+	gtk_grid_set_column_homogeneous(GTK_GRID(c->tab_bar), true);
 	
 	//int num_tabs = g_list_length(c->tabs);
 	//int num_parts = MAX(num_tabs + 1, 6);  // Determine the number of parts (max(6, num_tabs + 1))
