@@ -402,7 +402,9 @@ void tab_bar_click(GtkWidget *w, GdkEvent *e, Client *c) {
 }
 
 void switch_tab(Client *c, const Arg *a) {
-	g_print("switch");
+	g_print("switch %i", a->i);
+	c->selected_tab = MIN(MAX(c->selected_tab + a->i, 0), g_list_length(c->tabs) - 1);
+	update_tab_bar(c);
 }
 
 void move_tab(Client *c, const Arg *a) {
