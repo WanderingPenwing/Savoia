@@ -404,31 +404,36 @@ void reload_tab(Client *c) {
 }
 
 void switch_tab(Client *c, const Arg *a) {
-	c->selected_tab = MIN(MAX(c->selected_tab + a->i, 0), g_list_length(c->tabs) - 1);
+	int new_selected_tab = MIN(MAX(c->selected_tab + a->i, 0), g_list_length(c->tabs) - 1);
+	
+	if (c->selected_tab == new_selected_tab) {
+		return;
+	}
+	c->selected_tab = new_selected_tab;
 	update_tab_bar(c);
 	reload_tab(c);
 }
 
 void move_tab(Client *c, const Arg *a) {
 	int new_index = c->selected_tab + a->i;
-    int tab_count = g_list_length(c->tabs);
+	int tab_count = g_list_length(c->tabs);
 
-    // Ensure the new index is within valid bounds
-    if (new_index >= 0 && new_index < tab_count) {
-        // Get the nodes for the current and the target positions
-        GList *current_node = g_list_nth(c->tabs, c->selected_tab);
-        GList *target_node = g_list_nth(c->tabs, new_index);
+	// Ensure the new index is within valid bounds
+	if (new_index >= 0 && new_index < tab_count) {
+		// Get the nodes for the current and the target positions
+		GList *current_node = g_list_nth(c->tabs, c->selected_tab);
+		GList *target_node = g_list_nth(c->tabs, new_index);
 
-        // Swap the data of the two nodes
-        if (current_node != NULL && target_node != NULL) {
-            gpointer temp_data = current_node->data;
-            current_node->data = target_node->data;
-            target_node->data = temp_data;
-        }
+		// Swap the data of the two nodes
+		if (current_node != NULL && target_node != NULL) {
+			gpointer temp_data = current_node->data;
+			current_node->data = target_node->data;
+			target_node->data = temp_data;
+		}
 
-        // Update the selected tab index
-        c->selected_tab = new_index;
-    }
+		// Update the selected tab index
+		c->selected_tab = new_index;
+	}
 
 	update_tab_bar(c);
 }
@@ -465,8 +470,8 @@ void new_tab(Client *c, const Arg *a) {
 	c->selected_tab = g_list_length(c->tabs) - 1;
 	update_tab_bar(c);
 	reload_tab(c);
-	Arg arg = SETPROP("_SURF_URI", "_SURF_GO", "PROMPT_GO");
-    spawn(c, &arg);
+	Arg arg = SETPROP("_SURF_URI", "_SURF_GO", PROMPT_GO);
+	spawn(c, &arg);
 }
 
 void fill_tab_bar(Client *c) {
