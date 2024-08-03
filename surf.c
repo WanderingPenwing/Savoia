@@ -187,7 +187,7 @@ typedef struct {
 
 typedef struct {
 	char *title;
-	char *uri;
+	char *url;
 } Tab;
 
 /* Surf */
@@ -367,15 +367,15 @@ static ParamName loadfinished[] = {
 // Function to free a tab
 void free_tab(Tab *tab) {
 	g_free(tab->title);
-	g_free(tab->uri);
+	g_free(tab->url);
 	g_free(tab);
 }
 
 // Function to add a tab to the clients tab list
-void add_tab(Client *client, const gchar *uri) {
+void add_tab(Client *client, const gchar *url) {
 	Tab *tab = g_malloc(sizeof(Tab));
 	tab->title = g_strdup("untitled");
-	tab->uri = g_strdup(uri);
+	tab->url = g_strdup(url);
 	client->tabs = g_list_append(client->tabs, tab);
 }
 
@@ -398,22 +398,42 @@ void free_all_tabs(Client *client) {
 }
 
 void tab_bar_click(GtkWidget *w, GdkEvent *e, Client *c) {
-	g_print("yay");
+	g_print("yay\n");
 }
 
 void switch_tab(Client *c, const Arg *a) {
-	g_print("switch %i", a->i);
+	g_print("switch %i\n", a->i);
 	c->selected_tab = MIN(MAX(c->selected_tab + a->i, 0), g_list_length(c->tabs) - 1);
 	update_tab_bar(c);
 }
 
 void move_tab(Client *c, const Arg *a) {
-	g_print("move");
+	g_print("move\n");
+}
+
+void update_tab_url(Client *c) {
+	char *url = geturi(c);
+	
+	g_print("updated tab : %c\n", url);
+	
+	Tab *selected_tab = g_list_nth_data(c->tabs, c->selected_tab);
+	selected_tab->url = g_strdup(url);
+	
+}
+
+void update_tab_title(Client *c) {
+	const char *title = c->title ? c->title : "untitled";
+	
+	Tab *selected_tab = g_list_nth_data(c->tabs, c->selected_tab);
+	selected_tab->title = g_strdup(title);
+	
+	//update_tab_url(c);
+	update_tab_bar(c);
 }
 
 void close_tab(Client *c, const Arg *a) {
 	if (g_list_length(c->tabs) == 1) {
-		g_print("tried to close last tab");
+		g_print("tried to close last tab\n");
 		return;
 	}
 	remove_tab(c, g_list_nth_data(c->tabs, c->selected_tab));
@@ -456,7 +476,6 @@ void fill_tab_bar(Client *c) {
 }
 
 void create_tab_bar(Client *c) {
-	g_print("hello there\n\n");
 	GdkRGBA bg_color;
 	gdk_rgba_parse(&bg_color, tab_bar_color[0]);
 
@@ -765,13 +784,14 @@ loaduri(Client *c, const Arg *a)
 
 	setatom(c, AtomUri, url);
 
+	g_print("load uri\n");
 	if (strcmp(url, geturi(c)) == 0) {
 		reload(c, a);
 	} else {
 		webkit_web_view_load_uri(c->view, url);
 		updatetitle(c);
 	}
-
+	
 	g_free(url);
 }
 
@@ -833,12 +853,14 @@ updatetitle(Client *c)
 		else
 			title = g_strdup_printf("%s:%s | %s",
 					togglestats, pagestats, name);
-
-		gtk_window_set_title(GTK_WINDOW(c->win), title);
+		
+    	gtk_window_set_title(GTK_WINDOW(c->win), title);
 		g_free(title);
 	} else {
 		gtk_window_set_title(GTK_WINDOW(c->win), name);
 	}
+	
+	update_tab_title(c);
 }
 
 void
@@ -1258,9 +1280,7 @@ destroyclient(Client *c)
 		p->next = c->next;
 	else
 		clients = c->next;
-
 	free_all_tabs(c);
-	
 	free(c);
 }
 
