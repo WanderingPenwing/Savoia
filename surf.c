@@ -148,6 +148,7 @@ typedef struct Client {
 	const char *needle;
 	struct Client *next;
 	GList *tabs;
+	int selected_tab;
 } Client;
 
 typedef struct {
@@ -370,12 +371,12 @@ void free_tab(Tab *tab) {
 	g_free(tab);
 }
 
-// Function to add a tab to the client's tab list
+// Function to add a tab to the clients tab list
 void add_tab(Client *client, Tab *tab) {
 	client->tabs = g_list_append(client->tabs, tab);
 }
 
-// Function to remove a tab from the client's tab list
+// Function to remove a tab from the clients tab list
 void remove_tab(Client *client, Tab *tab) {
 	client->tabs = g_list_remove(client->tabs, tab);
 	free_tab(tab);
@@ -387,20 +388,24 @@ void free_all_tabs(Client *client) {
 	client->tabs = NULL;
 }
 
-GtkWidget* create_tab_bar_view(GList *tabs) {
+GtkWidget* create_tab_bar_view(GList *tabs, int selected_tab) {
+	GdkRGBA bg_color;
+    gdk_rgba_parse(&bg_color, tab_bar_color[0]);
+	GdkRGBA fg_color;
+    gdk_rgba_parse(&fg_color, tab_bar_color[1]);
+
 	GtkWidget *tab_bar_container = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0); 
 	gtk_widget_set_size_request(tab_bar_container, -1, tab_bar_height + tab_spacer_height);
 
 	GtkWidget *tab_bar = gtk_grid_new(); 
-	GdkRGBA bg_color;
-    gdk_rgba_parse(&bg_color, tab_bar_color[0]);
 	gtk_widget_override_background_color(tab_bar, GTK_STATE_FLAG_NORMAL, &bg_color);
 	gtk_widget_set_size_request(tab_bar, -1, tab_bar_height);  // Set the height of the black bar
 	gtk_grid_set_column_spacing(tab_bar, 10);
 	
 	//int num_tabs = g_list_length(tabs);
 	//int num_parts = MAX(num_tabs + 1, 6);  // Determine the number of parts (max(6, num_tabs + 1))
-
+	
+	int tab_index = 0;
 	// Add tabs to the tab bar
 	for (GList *l = tabs; l != NULL; l = l->next) {
 		Tab *tab = (Tab *)l->data;
@@ -409,10 +414,14 @@ GtkWidget* create_tab_bar_view(GList *tabs) {
 		gtk_label_set_xalign(GTK_LABEL(label), 0.0);
 		gtk_widget_set_margin_start(label, 5);
 		gtk_widget_set_valign(label, GTK_ALIGN_CENTER);
-		// Set the size request for each tab to ensure they are evenly distributed
-		//gtk_widget_set_size_request(label, -1, -1);  // Default size request for label
+		gtk_widget_set_size_request(label, -1, tab_bar_height);
+		if (tab_index == selected_tab) {
+			gtk_widget_override_background_color(label, GTK_STATE_FLAG_NORMAL, &fg_color);
+		}
 		gtk_grid_attach_next_to(GTK_GRID(tab_bar), label, NULL, GTK_POS_RIGHT, 1, 1);  // Pack the label into the box
 		gtk_widget_show(label);
+		
+		tab_index++;
 	}
 
 	// Add an empty spacer to ensure space for the last tab
@@ -420,9 +429,6 @@ GtkWidget* create_tab_bar_view(GList *tabs) {
 	gtk_grid_attach_next_to(GTK_GRID(tab_bar), new_tab, NULL, GTK_POS_RIGHT, 1, 1);
 	gtk_widget_show(new_tab);
 
-
-	GdkRGBA fg_color;
-    gdk_rgba_parse(&fg_color, tab_bar_color[1]);
 	GtkWidget *spacer = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
 	gtk_widget_override_background_color(spacer, GTK_STATE_FLAG_NORMAL, &fg_color);
 	gtk_widget_set_size_request(spacer, -1, tab_spacer_height);
@@ -688,6 +694,8 @@ newclient(Client *rc)
 	Tab *tab2 = create_tab("Kenobi", "about:blank");
 	add_tab(c, tab1);
 	add_tab(c, tab2);
+	
+	c->selected_tab = 0;
 
 	return c;
 }
@@ -1529,7 +1537,7 @@ showview(WebKitWebView *v, Client *c)
 	GdkWindow *gwin;
 
 	// Create the black bar using the separate function
-	GtkWidget *tab_bar = create_tab_bar_view(c->tabs);
+	GtkWidget *tab_bar = create_tab_bar_view(c->tabs, c->selected_tab);
 
 	// Create a container to hold the black bar and the WebKitWebView
 	GtkWidget *vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
