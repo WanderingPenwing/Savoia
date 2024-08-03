@@ -187,7 +187,7 @@ typedef struct {
 
 typedef struct {
 	char *title;
-	char *url;
+	char *uri;
 } Tab;
 
 /* Surf */
@@ -367,15 +367,15 @@ static ParamName loadfinished[] = {
 // Function to free a tab
 void free_tab(Tab *tab) {
 	g_free(tab->title);
-	g_free(tab->url);
+	g_free(tab->uri);
 	g_free(tab);
 }
 
 // Function to add a tab to the clients tab list
-void add_tab(Client *client, const gchar *url) {
+void add_tab(Client *client, const gchar *uri) {
 	Tab *tab = g_malloc(sizeof(Tab));
 	tab->title = g_strdup("untitled");
-	tab->url = g_strdup(url);
+	tab->uri = g_strdup(uri);
 	client->tabs = g_list_append(client->tabs, tab);
 }
 
@@ -397,25 +397,27 @@ void free_all_tabs(Client *client) {
 	client->tabs = NULL;
 }
 
-void tab_bar_click(GtkWidget *w, GdkEvent *e, Client *c) {
-	g_print("yay\n");
+void reload_tab(Client *c) {
+	Tab *selected_tab = g_list_nth_data(c->tabs, c->selected_tab);
+	Arg tab_arg = {.v = selected_tab->uri };
+	loaduri(c, &tab_arg);
 }
 
 void switch_tab(Client *c, const Arg *a) {
-	g_print("switch %i\n", a->i);
 	c->selected_tab = MIN(MAX(c->selected_tab + a->i, 0), g_list_length(c->tabs) - 1);
 	update_tab_bar(c);
+	reload_tab(c);
 }
 
 void move_tab(Client *c, const Arg *a) {
 	g_print("move\n");
 }
 
-void update_tab_url(Client *c) {
-	char *url = geturi(c);
+void update_tab_uri(Client *c) {
+	char *uri = geturi(c);
 	
 	Tab *selected_tab = g_list_nth_data(c->tabs, c->selected_tab);
-	selected_tab->url = g_strdup(url);
+	selected_tab->uri = g_strdup(uri);
 }
 
 void update_tab_title(Client *c) {
@@ -424,7 +426,7 @@ void update_tab_title(Client *c) {
 	Tab *selected_tab = g_list_nth_data(c->tabs, c->selected_tab);
 	selected_tab->title = g_strdup(title);
 	
-	update_tab_url(c);
+	update_tab_uri(c);
 	update_tab_bar(c);
 }
 
@@ -505,9 +507,6 @@ void create_tab_bar(Client *c) {
 	//int num_parts = MAX(num_tabs + 1, 6);  // Determine the number of parts (max(6, num_tabs + 1))
 	
 	fill_tab_bar(c);	
-	
-	g_signal_connect(G_OBJECT(c->tab_bar), "button-release-event",
-					 G_CALLBACK(tab_bar_click), c);
 }
 
 void
