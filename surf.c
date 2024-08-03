@@ -149,6 +149,7 @@ typedef struct Client {
 	struct Client *next;
 	GList *tabs;
 	int selected_tab;
+	GtkWidget *tab_bar;
 } Client;
 
 typedef struct {
@@ -388,16 +389,15 @@ void free_all_tabs(Client *client) {
 	client->tabs = NULL;
 }
 
-GtkWidget* create_tab_bar_view(GList *tabs, int selected_tab) {
-	GdkRGBA bg_color;
+GtkWidget* create_tab_bar_view(GList *tabs, int selected_tab, GtkWidget *tab_bar) {
+	GdkRGBA bg_color, fg_color;
     gdk_rgba_parse(&bg_color, tab_bar_color[0]);
-	GdkRGBA fg_color;
     gdk_rgba_parse(&fg_color, tab_bar_color[1]);
 
 	GtkWidget *tab_bar_container = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0); 
 	gtk_widget_set_size_request(tab_bar_container, -1, tab_bar_height + tab_spacer_height);
 
-	GtkWidget *tab_bar = gtk_grid_new(); 
+	tab_bar = gtk_grid_new(); 
 	gtk_widget_override_background_color(tab_bar, GTK_STATE_FLAG_NORMAL, &bg_color);
 	gtk_widget_set_size_request(tab_bar, -1, tab_bar_height);  // Set the height of the black bar
 	gtk_grid_set_column_spacing(tab_bar, 10);
@@ -1537,7 +1537,7 @@ showview(WebKitWebView *v, Client *c)
 	GdkWindow *gwin;
 
 	// Create the black bar using the separate function
-	GtkWidget *tab_bar = create_tab_bar_view(c->tabs, c->selected_tab);
+	GtkWidget *tab_bar_container = create_tab_bar_view(c->tabs, c->selected_tab, c->tab_bar);
 
 	// Create a container to hold the black bar and the WebKitWebView
 	GtkWidget *vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
@@ -1549,7 +1549,7 @@ showview(WebKitWebView *v, Client *c)
 	c->win = createwindow(c);
 
 	// Add the black bar and the WebKitWebView to the container
-	gtk_box_pack_start(GTK_BOX(vbox), tab_bar, FALSE, FALSE, 0);
+	gtk_box_pack_start(GTK_BOX(vbox), tab_bar_container, FALSE, FALSE, 0);
 	gtk_box_pack_start(GTK_BOX(vbox), GTK_WIDGET(c->view), TRUE, TRUE, 0);
 
 	// Add the container to the main window
