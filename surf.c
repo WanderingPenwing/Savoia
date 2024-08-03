@@ -410,7 +410,27 @@ void switch_tab(Client *c, const Arg *a) {
 }
 
 void move_tab(Client *c, const Arg *a) {
-	g_print("move\n");
+	int new_index = c->selected_tab + a->i;
+    int tab_count = g_list_length(c->tabs);
+
+    // Ensure the new index is within valid bounds
+    if (new_index >= 0 && new_index < tab_count) {
+        // Get the nodes for the current and the target positions
+        GList *current_node = g_list_nth(c->tabs, c->selected_tab);
+        GList *target_node = g_list_nth(c->tabs, new_index);
+
+        // Swap the data of the two nodes
+        if (current_node != NULL && target_node != NULL) {
+            gpointer temp_data = current_node->data;
+            current_node->data = target_node->data;
+            target_node->data = temp_data;
+        }
+
+        // Update the selected tab index
+        c->selected_tab = new_index;
+    }
+
+	update_tab_bar(c);
 }
 
 void update_tab_uri(Client *c) {
@@ -444,6 +464,9 @@ void new_tab(Client *c, const Arg *a) {
 	add_tab(c, "about:blank");
 	c->selected_tab = g_list_length(c->tabs) - 1;
 	update_tab_bar(c);
+	reload_tab(c);
+	Arg arg = SETPROP("_SURF_URI", "_SURF_GO", "PROMPT_GO");
+    spawn(c, &arg);
 }
 
 void fill_tab_bar(Client *c) {
@@ -452,8 +475,8 @@ void fill_tab_bar(Client *c) {
 	
 	
 	//GtkAllocation allocation;
-    //gtk_widget_get_allocation(GTK_WIDGET(c->win), &allocation);
-    //int width = allocation.width;
+	//gtk_widget_get_allocation(GTK_WIDGET(c->win), &allocation);
+	//int width = allocation.width;
 	
 	int tab_index = 0;
 	// Add tabs to the tab bar
@@ -461,8 +484,8 @@ void fill_tab_bar(Client *c) {
 		Tab *tab = (Tab *)l->data;
 		
 		gchar *padded_title = g_strdup_printf("  %s", tab->title);
-        GtkWidget *label = gtk_label_new(padded_title);
-        g_free(padded_title);
+		GtkWidget *label = gtk_label_new(padded_title);
+		g_free(padded_title);
 		
 		gtk_label_set_xalign(GTK_LABEL(label), 0.0);
 		gtk_widget_set_valign(label, GTK_ALIGN_CENTER);
@@ -869,7 +892,7 @@ updatetitle(Client *c)
 			title = g_strdup_printf("%s:%s | %s",
 					togglestats, pagestats, name);
 		
-    	gtk_window_set_title(GTK_WINDOW(c->win), title);
+		gtk_window_set_title(GTK_WINDOW(c->win), title);
 		g_free(title);
 	} else {
 		gtk_window_set_title(GTK_WINDOW(c->win), name);
