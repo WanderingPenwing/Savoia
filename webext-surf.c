@@ -25,8 +25,8 @@ msgsurf(guint64 pageid, const char *s)
 	size_t sln = strlen(s);
 	int ret;
 
-	if ((ret = snprintf(msg, sizeof(msg), "%c%s", pageid, s))
-	    >= sizeof(msg)) {
+	if ((ret = snprintf(msg, sizeof(msg), "%" PRIu64 "%s", pageid, s))
+		>= sizeof(msg)) {
 		fprintf(stderr, "webext: msg: message too long: %d\n", ret);
 		return;
 	}
@@ -45,18 +45,18 @@ readsock(GIOChannel *s, GIOCondition c, gpointer unused)
 	gsize msgsz;
 
 	if (g_io_channel_read_chars(s, msg, sizeof(msg), &msgsz, &gerr) !=
-	    G_IO_STATUS_NORMAL) {
+		G_IO_STATUS_NORMAL) {
 		if (gerr) {
 			fprintf(stderr, "webext: error reading socket: %s\n",
-			        gerr->message);
+					gerr->message);
 			g_error_free(gerr);
 		}
 		return TRUE;
 	}
 
 	if (msgsz < 2) {
-		fprintf(stderr, "webext: readsock: message too short: %d\n",
-		        msgsz);
+		fprintf(stderr, "webext: readsock: message too short: %zu\n",
+				msgsz);
 		return TRUE;
 	}
 
@@ -70,17 +70,27 @@ readsock(GIOChannel *s, GIOCondition c, gpointer unused)
 		if (msgsz != 3)
 			return TRUE;
 		snprintf(js, sizeof(js),
-		         "window.scrollBy(window.innerWidth/100*%d,0);",
-		         msg[2]);
-		jsc_context_evaluate(jsc, js, -1);
+				 "window.scrollBy(window.innerWidth/100*%d,0);",
+				 msg[2]);
+		JSCValue *h_result = jsc_context_evaluate(jsc, js, -1);
+		if (h_result) {
+        	free(h_result);
+	    } else {
+	        fprintf(stderr, "Error evaluating JavaScript\n");
+	    }
 		break;
 	case 'v':
 		if (msgsz != 3)
 			return TRUE;
 		snprintf(js, sizeof(js),
-		         "window.scrollBy(0,window.innerHeight/100*%d);",
-		         msg[2]);
-		jsc_context_evaluate(jsc, js, -1);
+				 "window.scrollBy(0,window.innerHeight/100*%d);",
+				 msg[2]);
+		JSCValue *v_result = jsc_context_evaluate(jsc, js, -1);
+		if (v_result) {
+        	free(v_result);
+	    } else {
+	        fprintf(stderr, "Error evaluating JavaScript\n");
+	    }
 		break;
 	}
 
@@ -114,7 +124,7 @@ pageusermessagereply(GObject *o, GAsyncResult *r, gpointer page)
 	gchansock = g_io_channel_unix_new(sock);
 	g_io_channel_set_encoding(gchansock, NULL, NULL);
 	g_io_channel_set_flags(gchansock, g_io_channel_get_flags(gchansock)
-	                       | G_IO_FLAG_NONBLOCK, NULL);
+						   | G_IO_FLAG_NONBLOCK, NULL);
 	g_io_channel_set_close_on_unref(gchansock, TRUE);
 	g_io_add_watch(gchansock, G_IO_IN, readsock, NULL);
 }
@@ -134,5 +144,5 @@ webkit_web_extension_initialize(WebKitWebExtension *e)
 	webext = e;
 
 	g_signal_connect(G_OBJECT(e), "page-created",
-	                 G_CALLBACK(pagecreated), NULL);
+					 G_CALLBACK(pagecreated), NULL);
 }

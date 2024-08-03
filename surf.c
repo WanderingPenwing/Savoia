@@ -2045,7 +2045,7 @@ msgext(Client *c, char type, const Arg *a)
 	}
 
 	if (send(spair[0], msg, ret, 0) != ret)
-		fprintf(stderr, "surf: error sending: %u%c%d (%d)\n",
+		fprintf(stderr, "surf: error sending: %" PRIu64 "%c%d (%d)\n",
 				c->pageid, type, a->i, ret);
 }
 
