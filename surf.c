@@ -414,11 +414,8 @@ void move_tab(Client *c, const Arg *a) {
 void update_tab_url(Client *c) {
 	char *url = geturi(c);
 	
-	g_print("updated tab : %c\n", url);
-	
 	Tab *selected_tab = g_list_nth_data(c->tabs, c->selected_tab);
 	selected_tab->url = g_strdup(url);
-	
 }
 
 void update_tab_title(Client *c) {
@@ -427,7 +424,7 @@ void update_tab_title(Client *c) {
 	Tab *selected_tab = g_list_nth_data(c->tabs, c->selected_tab);
 	selected_tab->title = g_strdup(title);
 	
-	//update_tab_url(c);
+	update_tab_url(c);
 	update_tab_bar(c);
 }
 
