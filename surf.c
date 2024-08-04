@@ -365,6 +365,7 @@ static ParamName loadfinished[] = {
 /* configuration, allows nested code to access above variables */
 #include "config.h"
 
+static gboolean tab_click_received = FALSE;
 
 // Function to free a tab
 void free_tab(Tab *tab) {
@@ -499,6 +500,15 @@ void new_tab(Client *c, const Arg *a) {
 	spawn(c, &arg);
 }
 
+void tab_bar_click(GtkWidget *w, GdkEvent *e, Client *c) {
+	if (e->type == GDK_BUTTON_PRESS) {
+        GdkEventButton *event_button = (GdkEventButton *)e;
+        g_print("Click at position: (%.0f, %.0f)\n", event_button->x, event_button->y);
+    } else {
+        g_print("Event type %d received.\n", e->type);
+    }
+}
+
 void fill_tab_bar(Client *c) {
 	GdkRGBA fg_color;
 	gdk_rgba_parse(&fg_color, tab_bar_color[1]);
@@ -553,7 +563,6 @@ void create_tab_bar(Client *c) {
 	c->tab_bar = gtk_grid_new(); 
 	gtk_widget_override_background_color(c->tab_bar, GTK_STATE_FLAG_NORMAL, &bg_color);
 	gtk_widget_set_size_request(c->tab_bar, -1, tab_bar_height);  // Set the height of the black bar
-	gtk_widget_set_events(GTK_GRID(c->tab_bar), GDK_BUTTON_PRESS_MASK);
 	gtk_grid_set_column_homogeneous(GTK_GRID(c->tab_bar), true);
 	
 	//int num_tabs = g_list_length(c->tabs);
@@ -1595,7 +1604,7 @@ processx(GdkXEvent *e, GdkEvent *event, gpointer d)
 	Client *c = (Client *)d;
 	XPropertyEvent *ev;
 	Arg a;
-
+	
 	if (((XEvent *)e)->type == PropertyNotify) {
 		ev = &((XEvent *)e)->xproperty;
 		if (ev->state == PropertyNewValue) {
@@ -1681,7 +1690,7 @@ showview(WebKitWebView *v, Client *c)
 	
 	gtk_box_pack_start(GTK_BOX(tab_bar_container), c->tab_bar, FALSE, FALSE, 0);
 	gtk_box_pack_start(GTK_BOX(tab_bar_container), spacer, FALSE, FALSE, 0);
-
+	
 	// Create a container to hold the black bar and the WebKitWebView
 	GtkWidget *vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
 
@@ -1735,6 +1744,8 @@ createwindow(Client *c)
 {
 	char *wmstr;
 	GtkWidget *w;
+	
+	g_print("Creating window for client: %p\n", (void *)c);
 
 	if (embed) {
 		w = gtk_plug_new(embed);
@@ -1762,6 +1773,8 @@ createwindow(Client *c)
 					 G_CALLBACK(winevent), c);
 	g_signal_connect(G_OBJECT(w), "window-state-event",
 					 G_CALLBACK(winevent), c);
+	g_signal_connect(G_OBJECT(w), "button-press-event",
+                     G_CALLBACK(tab_bar_click), c);
 
 	return w;
 }
