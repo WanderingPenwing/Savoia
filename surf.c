@@ -521,7 +521,10 @@ void tab_bar_click(GtkWidget *w, GdkEvent *e, Client *c) {
 		int tab_index = (int)(event_button->x / tab_width);
 		
 		if (tab_index < n_tabs) {
-			c->selected_tab = event_button->x/tab_width;
+			if (c->selected_tab == tab_index) {
+				return;
+			}
+			c->selected_tab = tab_index;
 			update_tab_bar(c);
 			suspend_tab(c);
 		} else {
