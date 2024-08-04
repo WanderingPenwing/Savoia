@@ -188,6 +188,7 @@ typedef struct {
 typedef struct {
 	char *title;
 	char *uri;
+	bool suspended;
 } Tab;
 
 /* Surf */
@@ -376,6 +377,7 @@ void add_tab(Client *client, const gchar *uri) {
 	Tab *tab = g_malloc(sizeof(Tab));
 	tab->title = g_strdup("untitled");
 	tab->uri = g_strdup(uri);
+	tab->suspended = false;
 	client->tabs = g_list_append(client->tabs, tab);
 }
 
@@ -398,8 +400,14 @@ void free_all_tabs(Client *client) {
 }
 
 void reload_tab(Client *c) {
+	char *uri;
 	Tab *selected_tab = g_list_nth_data(c->tabs, c->selected_tab);
-	Arg tab_arg = {.v = selected_tab->uri };
+	if (selected_tab->suspended) {
+		uri = "about:blank";
+	} else {
+		uri = selected_tab->uri;
+	}
+	Arg tab_arg = {.v = uri };
 	loaduri(c, &tab_arg);
 }
 
@@ -410,6 +418,8 @@ void switch_tab(Client *c, const Arg *a) {
 		return;
 	}
 	c->selected_tab = new_selected_tab;
+	Tab *selected_tab = g_list_nth_data(c->tabs, c->selected_tab);
+	selected_tab->suspended = true;
 	update_tab_bar(c);
 	reload_tab(c);
 }
@@ -439,20 +449,31 @@ void move_tab(Client *c, const Arg *a) {
 }
 
 void update_tab_uri(Client *c) {
-	char *uri = geturi(c);
-	
 	Tab *selected_tab = g_list_nth_data(c->tabs, c->selected_tab);
+	if (selected_tab->suspended) {
+		return;
+	}
+	char *uri = geturi(c);
 	selected_tab->uri = g_strdup(uri);
 }
 
 void update_tab_title(Client *c) {
+	Tab *selected_tab = g_list_nth_data(c->tabs, c->selected_tab);
+	if (selected_tab->suspended) {
+		return;
+	}
 	const char *title = c->title ? c->title : "untitled";
 	
-	Tab *selected_tab = g_list_nth_data(c->tabs, c->selected_tab);
 	selected_tab->title = g_strdup(title);
 	
 	update_tab_uri(c);
 	update_tab_bar(c);
+}
+
+void unsuspend_tab(Client *c) {
+	Tab *selected_tab = g_list_nth_data(c->tabs, c->selected_tab);
+	selected_tab->suspended = false;
+	reload_tab(c);
 }
 
 void close_tab(Client *c, const Arg *a) {
@@ -827,7 +848,6 @@ loaduri(Client *c, const Arg *a)
 
 	setatom(c, AtomUri, url);
 
-	g_print("load uri\n");
 	if (strcmp(url, geturi(c)) == 0) {
 		reload(c, a);
 	} else {
@@ -1543,6 +1563,12 @@ buttonreleased(GtkWidget *w, GdkEvent *e, Client *c)
 {
 	WebKitHitTestResultContext element;
 	int i;
+	
+	Tab *selected_tab = g_list_nth_data(c->tabs, c->selected_tab);
+	if (selected_tab->suspended) {
+		unsuspend_tab(c);
+		return TRUE;
+	}
 
 	element = webkit_hit_test_result_get_context(c->mousepos);
 
