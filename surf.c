@@ -148,8 +148,9 @@ typedef struct Client {
 	const char *needle;
 	struct Client *next;
 	GList *tabs;
-	int selected_tab;
+	guint selected_tab;
 	GtkWidget *tab_bar;
+	guint last_tab_click_time;
 } Client;
 
 typedef struct {
@@ -487,8 +488,23 @@ void close_tab(Client *c, const Arg *a) {
 		g_print("tried to close last tab\n");
 		return;
 	}
-	remove_tab(c, g_list_nth_data(c->tabs, c->selected_tab));
-	c->selected_tab -= 1;
+	
+	int index = a->i;
+	if (index >= g_list_length(c->tabs)) {
+		g_print("tried to close tab that does not exist\n");
+		return;
+	}
+	
+	if (index == -1 || index == c->selected_tab) {
+		remove_tab(c, g_list_nth_data(c->tabs, c->selected_tab));
+	} else {
+		remove_tab(c, g_list_nth_data(c->tabs, index));
+	}
+	
+	if (index <= c->selected_tab && c->selected_tab > 0) {
+		c->selected_tab -= 1;
+	}
+	
 	update_tab_bar(c);
 	suspend_tab(c);
 }
@@ -502,36 +518,66 @@ void new_tab(Client *c, const Arg *a) {
 	spawn(c, &arg);
 }
 
+int get_font_size(GtkWidget *widget) {
+    GtkStyleContext *context = gtk_widget_get_style_context(widget);
+    PangoFontDescription *desc = gtk_style_context_get_font(context, GTK_STATE_FLAG_NORMAL);
+    int size = pango_font_description_get_size(desc);
+
+    // Convert size from Pango units to points
+    size = size / PANGO_SCALE;
+
+    return size;
+}
+
 void tab_bar_click(GtkWidget *w, GdkEvent *e, Client *c) {
 	if (g_list_length(c->tabs) == 0) {
 		return;
 	}
-	if (e->type == GDK_BUTTON_PRESS) {
-		GdkEventButton *event_button = (GdkEventButton *)e;
-		
-		GtkAllocation allocation;
-		gtk_widget_get_allocation(GTK_WIDGET(c->win), &allocation);
-		int width = allocation.width;
-		
-		int n_tabs = g_list_length(c->tabs);
-		
-		int tab_width = width / MAX(n_tabs + 1, 4);
-		
-		
-		int tab_index = (int)(event_button->x / tab_width);
-		
-		if (tab_index < n_tabs) {
-			if (c->selected_tab == tab_index) {
-				return;
-			}
-			c->selected_tab = tab_index;
-			update_tab_bar(c);
-			suspend_tab(c);
-		} else {
-			Arg new_tab_arg = {0};
-			new_tab(c, &new_tab_arg);
-		}
+	
+	if (e->type != GDK_BUTTON_PRESS) {
+		return;
 	}
+	
+	guint current_time = g_get_monotonic_time() / 1000;
+	
+	
+	if (current_time - c->last_tab_click_time < click_cooldown_ms) {
+        return;
+    }
+	
+	c->last_tab_click_time = current_time;
+	
+	GdkEventButton *event_button = (GdkEventButton *)e;
+	
+	GtkAllocation allocation;
+	gtk_widget_get_allocation(GTK_WIDGET(c->win), &allocation);
+	int width = allocation.width;
+	
+	int n_tabs = g_list_length(c->tabs);
+	int tab_width = width / MAX(n_tabs + 1, min_tab_fraction_size);
+	int tab_index = (int)(event_button->x / tab_width);
+	
+	if (tab_index >= n_tabs) {
+		Arg new_tab_arg = {0};
+		new_tab(c, &new_tab_arg);
+		return;
+	}
+	
+	int x_width = MIN(get_font_size(c->tab_bar) * 5 / 2, tab_width / 4); 
+	
+	if (event_button->x - tab_index * tab_width > tab_width - x_width) {
+		Arg close_arg = {.i = tab_index};
+		close_tab(c, &close_arg);
+		return;
+	}
+	
+	if (c->selected_tab == tab_index) {
+		return;
+	}
+	
+	c->selected_tab = tab_index;
+	update_tab_bar(c);
+	suspend_tab(c);
 }
 
 void fill_tab_bar(Client *c) {
@@ -554,11 +600,19 @@ void fill_tab_bar(Client *c) {
 		
 		gtk_label_set_ellipsize(GTK_LABEL(label), PANGO_ELLIPSIZE_END); //if too long cut it
 		
+		GtkWidget *tab_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+		gtk_box_pack_start(GTK_BOX(tab_box), label, TRUE, TRUE, 0);
+		
+		GtkWidget *close_button = gtk_label_new("  ⨯  ");
+		gtk_widget_set_halign(close_button, GTK_ALIGN_END);
+		gtk_box_pack_start(GTK_BOX(tab_box), close_button, FALSE, FALSE, 0);
+		
 		if (tab_index == c->selected_tab) {
-			gtk_widget_override_background_color(label, GTK_STATE_FLAG_NORMAL, &fg_color);
+			gtk_widget_override_background_color(tab_box, GTK_STATE_FLAG_NORMAL, &fg_color);
 		}
-		gtk_grid_attach_next_to(GTK_GRID(c->tab_bar), label, NULL, GTK_POS_RIGHT, 1, 1);  // Pack the label into the box
-		gtk_widget_show(label);
+		
+		gtk_grid_attach_next_to(GTK_GRID(c->tab_bar), tab_box, NULL, GTK_POS_RIGHT, 1, 1);  // Pack the box into the grid
+		gtk_widget_show_all(tab_box);
 		
 		tab_index++;
 	}
@@ -569,7 +623,7 @@ void fill_tab_bar(Client *c) {
 	
 	gtk_widget_show(new_tab);
 	
-	for (int i = g_list_length(c->tabs) + 1; i < 4; i++) {
+	for (int i = g_list_length(c->tabs) + 1; i < min_tab_fraction_size; i++) {
 		GtkWidget *spacing = gtk_label_new("");  // Create an empty label as a spacer
 		gtk_grid_attach_next_to(GTK_GRID(c->tab_bar), spacing, NULL, GTK_POS_RIGHT, 1, 1);
 		gtk_widget_show(spacing);
@@ -584,9 +638,6 @@ void create_tab_bar(Client *c) {
 	gtk_widget_override_background_color(c->tab_bar, GTK_STATE_FLAG_NORMAL, &bg_color);
 	gtk_widget_set_size_request(c->tab_bar, -1, tab_bar_height);  // Set the height of the black bar
 	gtk_grid_set_column_homogeneous(GTK_GRID(c->tab_bar), true);
-	
-	//int num_tabs = g_list_length(c->tabs);
-	//int num_parts = MAX(num_tabs + 1, 6);  // Determine the number of parts (max(6, num_tabs + 1))
 	
 	fill_tab_bar(c);	
 }
