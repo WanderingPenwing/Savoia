@@ -292,6 +292,7 @@ static void insert(Client *c, const Arg *a);
 /* Buttons */
 static void clicknavigate(Client *c, const Arg *a, WebKitHitTestResult *h);
 static void clicknewwindow(Client *c, const Arg *a, WebKitHitTestResult *h);
+static void clicknewtab(Client *c, const Arg *a, WebKitHitTestResult *h);
 static void clickexternplayer(Client *c, const Arg *a, WebKitHitTestResult *h);
 
 static void switch_tab(Client *c, const Arg *a);
@@ -375,7 +376,7 @@ void free_tab(Tab *tab) {
 // Function to add a tab to the clients tab list
 void add_tab(Client *client, const gchar *uri) {
 	Tab *tab = g_malloc(sizeof(Tab));
-	tab->title = g_strdup("untitled");
+	tab->title = g_strdup(uri);
 	tab->uri = g_strdup(uri);
 	tab->suspended = false;
 	client->tabs = g_list_append(client->tabs, tab);
@@ -2315,6 +2316,13 @@ clicknewwindow(Client *c, const Arg *a, WebKitHitTestResult *h)
 
 	arg.v = webkit_hit_test_result_get_link_uri(h);
 	newwindow(c, &arg, a->i);
+}
+
+void
+clicknewtab(Client *c, const Arg *a, WebKitHitTestResult *h)
+{
+	gchar *uri = webkit_hit_test_result_get_link_uri(h);
+	add_tab(c, uri);
 }
 
 void
