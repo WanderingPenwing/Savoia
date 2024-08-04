@@ -490,7 +490,7 @@ void close_tab(Client *c, const Arg *a) {
 	}
 	
 	int index = a->i;
-	if (index >= g_list_length(c->tabs)) {
+	if (index >= g_list_length(c->tabs) && index != -1) {
 		g_print("tried to close tab that does not exist\n");
 		return;
 	}
