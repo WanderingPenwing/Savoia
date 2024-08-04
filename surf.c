@@ -483,7 +483,10 @@ void close_tab(Client *c, const Arg *a) {
 	}
 	remove_tab(c, g_list_nth_data(c->tabs, c->selected_tab));
 	c->selected_tab -= 1;
+	Tab *selected_tab = g_list_nth_data(c->tabs, c->selected_tab);
+	selected_tab->suspended = true;
 	update_tab_bar(c);
+	reload_tab(c);
 }
 
 void new_tab(Client *c, const Arg *a) {
@@ -1597,10 +1600,14 @@ processx(GdkXEvent *e, GdkEvent *event, gpointer d)
 		if (ev->state == PropertyNewValue) {
 			if (ev->atom == atoms[AtomFind]) {
 				find(c, NULL);
-
+				
 				return GDK_FILTER_REMOVE;
 			} else if (ev->atom == atoms[AtomGo]) {
 				a.v = getatom(c, AtomGo);
+				
+				Tab *selected_tab = g_list_nth_data(c->tabs, c->selected_tab);
+				selected_tab->suspended = false;
+				
 				loaduri(c, &a);
 
 				return GDK_FILTER_REMOVE;
