@@ -420,10 +420,8 @@ void switch_tab(Client *c, const Arg *a) {
 		return;
 	}
 	c->selected_tab = new_selected_tab;
-	Tab *selected_tab = g_list_nth_data(c->tabs, c->selected_tab);
-	selected_tab->suspended = true;
 	update_tab_bar(c);
-	reload_tab(c);
+	suspend_tab(c);
 }
 
 void move_tab(Client *c, const Arg *a) {
@@ -478,6 +476,12 @@ void unsuspend_tab(Client *c) {
 	reload_tab(c);
 }
 
+void suspend_tab(Client *c) {
+	Tab *selected_tab = g_list_nth_data(c->tabs, c->selected_tab);
+	selected_tab->suspended = true;
+	reload_tab(c);
+}
+
 void close_tab(Client *c, const Arg *a) {
 	if (g_list_length(c->tabs) == 1) {
 		g_print("tried to close last tab\n");
@@ -485,10 +489,8 @@ void close_tab(Client *c, const Arg *a) {
 	}
 	remove_tab(c, g_list_nth_data(c->tabs, c->selected_tab));
 	c->selected_tab -= 1;
-	Tab *selected_tab = g_list_nth_data(c->tabs, c->selected_tab);
-	selected_tab->suspended = true;
 	update_tab_bar(c);
-	reload_tab(c);
+	suspend_tab(c);
 }
 
 void new_tab(Client *c, const Arg *a) {
@@ -501,22 +503,37 @@ void new_tab(Client *c, const Arg *a) {
 }
 
 void tab_bar_click(GtkWidget *w, GdkEvent *e, Client *c) {
+	if (g_list_length(c->tabs) == 0) {
+		return;
+	}
 	if (e->type == GDK_BUTTON_PRESS) {
-        GdkEventButton *event_button = (GdkEventButton *)e;
-        g_print("Click at position: (%.0f, %.0f)\n", event_button->x, event_button->y);
-    } else {
-        g_print("Event type %d received.\n", e->type);
-    }
+		GdkEventButton *event_button = (GdkEventButton *)e;
+		
+		GtkAllocation allocation;
+		gtk_widget_get_allocation(GTK_WIDGET(c->win), &allocation);
+		int width = allocation.width;
+		
+		int n_tabs = g_list_length(c->tabs);
+		
+		int tab_width = width / MAX(n_tabs + 1, 4);
+		
+		
+		int tab_index = (int)(event_button->x / tab_width);
+		
+		if (tab_index < n_tabs) {
+			c->selected_tab = event_button->x/tab_width;
+			update_tab_bar(c);
+			suspend_tab(c);
+		} else {
+			Arg new_tab_arg = {0};
+			new_tab(c, &new_tab_arg);
+		}
+	}
 }
 
 void fill_tab_bar(Client *c) {
 	GdkRGBA fg_color;
 	gdk_rgba_parse(&fg_color, tab_bar_color[1]);
-	
-	
-	//GtkAllocation allocation;
-	//gtk_widget_get_allocation(GTK_WIDGET(c->win), &allocation);
-	//int width = allocation.width;
 	
 	int tab_index = 0;
 	// Add tabs to the tab bar
@@ -861,7 +878,7 @@ loaduri(Client *c, const Arg *a)
 
 	setatom(c, AtomUri, url);
 
-	if (strcmp(url, geturi(c)) == 0) {
+	if (strcmp(url, geturi(c)) == 0 && strcmp(url, "about:blank") != 0) {
 		reload(c, a);
 	} else {
 		webkit_web_view_load_uri(c->view, url);
@@ -1744,8 +1761,6 @@ createwindow(Client *c)
 {
 	char *wmstr;
 	GtkWidget *w;
-	
-	g_print("Creating window for client: %p\n", (void *)c);
 
 	if (embed) {
 		w = gtk_plug_new(embed);
@@ -1774,7 +1789,7 @@ createwindow(Client *c)
 	g_signal_connect(G_OBJECT(w), "window-state-event",
 					 G_CALLBACK(winevent), c);
 	g_signal_connect(G_OBJECT(w), "button-press-event",
-                     G_CALLBACK(tab_bar_click), c);
+					 G_CALLBACK(tab_bar_click), c);
 
 	return w;
 }
