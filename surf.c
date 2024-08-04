@@ -1630,12 +1630,12 @@ winevent(GtkWidget *w, GdkEvent *e, Client *c)
 void
 showview(WebKitWebView *v, Client *c)
 {
-	GdkRGBA bgcolor = { 0 };
 	GdkWindow *gwin;
 
 	// Create the black bar using the separate function
-	GdkRGBA fg_color;
+	GdkRGBA fg_color, bg_color;
 	gdk_rgba_parse(&fg_color, tab_bar_color[1]);
+	gdk_rgba_parse(&bg_color, tab_bar_color[0]);
 
 	GtkWidget *tab_bar_container = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0); 
 	gtk_widget_set_size_request(tab_bar_container, -1, tab_bar_height + tab_spacer_height);
@@ -1674,9 +1674,11 @@ showview(WebKitWebView *v, Client *c)
 		puts(winid);
 		fflush(stdout);
 	}
+	
+	webkit_web_view_set_background_color(c->view, &bg_color);
 
 	if (curconfig[HideBackground].val.i)
-		webkit_web_view_set_background_color(c->view, &bgcolor);
+		webkit_web_view_set_background_color(c->view, &bg_color);
 
 	if (!curconfig[KioskMode].val.i) {
 		gdk_window_set_events(gwin, GDK_ALL_EVENTS_MASK);
