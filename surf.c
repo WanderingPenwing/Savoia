@@ -322,7 +322,7 @@ static void suspend_tab(Client *c);
 static void close_tab(Client *c, const Arg *a);
 static void new_tab(Client *c, const Arg *a);
 static int  get_font_size(GtkWidget *widget);
-static void tab_bar_click(Client *c);
+static void tab_bar_click(Client *c, bool close);
 static void fill_tab_bar(Client *c);
 static void create_tab_bar(Client *c);
 
@@ -557,7 +557,7 @@ int get_font_size(GtkWidget *widget) {
 	return size;
 }
 
-int tab_mouse_pos_index(GdkEvent *e, Client *c) {
+void tab_mouse_pos_index(GdkEvent *e, Client *c, int *index, bool *close_tab) {
 	GdkEventButton *event_button = (GdkEventButton *)e;
 	double x = event_button->x;
 	
@@ -568,7 +568,12 @@ int tab_mouse_pos_index(GdkEvent *e, Client *c) {
 	int n_tabs = g_list_length(c->tabs);
 	int tab_width = width / MAX(n_tabs + 1, min_tab_fraction_size);
 	
-	return (int)(x / tab_width);
+	*index = (int)(x / tab_width);
+	
+	if (close_tab != NULL) {
+		int x_width = MIN(get_font_size(c->tab_bar) * 5 / 2, tab_width / 4);
+		*close_tab = (x - *index * tab_width > tab_width - x_width);
+	}
 }
 
 void tab_bar_mouse_press(GtkWidget *w, GdkEvent *e, Client *c) {
@@ -576,7 +581,7 @@ void tab_bar_mouse_press(GtkWidget *w, GdkEvent *e, Client *c) {
 		return;
 	}
 	
-	c->tab_click_index = tab_mouse_pos_index(e, c);
+	tab_mouse_pos_index(e, c, &c->tab_click_index, NULL);
 	
 	g_print("press\n");
 	
@@ -587,11 +592,13 @@ void tab_bar_mouse_release(GtkWidget *w, GdkEvent *e, Client *c) {
 		return;
 	}
 	
-	int press_index = tab_mouse_pos_index(e, c);
+	int press_index;
+	bool close_tab_flag;
+	tab_mouse_pos_index(e, c, &press_index, &close_tab_flag);
 	
 	g_print("%i # %i\n", c->tab_click_index, press_index);
 	if (c->tab_click_index == press_index) {
-		tab_bar_click(c);
+		tab_bar_click(c, close_tab_flag);
 	}
 	
 	c->tab_click_index = -1;
@@ -605,12 +612,18 @@ void tab_bar_mouse_move(GtkWidget *w, GdkEvent *e, Client *c) {
 	g_print("move\n");
 }
 
-void tab_bar_click(Client *c) {
+void tab_bar_click(Client *c, bool close) {
 	if (g_list_length(c->tabs) == 0) {
 		return;
 	}
 	
 	g_print("click\n");
+	
+	if (close) {
+		Arg close_arg = {.i = c->tab_click_index};
+		close_tab(c, &close_arg);
+		return;
+	}
 	
 	int n_tabs = g_list_length(c->tabs);
 	
@@ -619,14 +632,6 @@ void tab_bar_click(Client *c) {
 		new_tab(c, &new_tab_arg);
 		return;
 	}
-	
-//	int x_width = MIN(get_font_size(c->tab_bar) * 5 / 2, tab_width / 4); 
-//	
-//	if (c->tab_click_pos - tab_index * tab_width > tab_width - x_width) {
-//		Arg close_arg = {.i = tab_index};
-//		close_tab(c, &close_arg);
-//		return;
-//	}
 	
 	if (c->selected_tab == c->tab_click_index) {
 		return;
