@@ -150,7 +150,7 @@ typedef struct Client {
 	GList *tabs;
 	guint selected_tab;
 	GtkWidget *tab_bar;
-	guint last_tab_click_time;
+	int tab_click_pos; 
 } Client;
 
 typedef struct {
@@ -322,7 +322,7 @@ static void suspend_tab(Client *c);
 static void close_tab(Client *c, const Arg *a);
 static void new_tab(Client *c, const Arg *a);
 static int  get_font_size(GtkWidget *widget);
-static void tab_bar_click(GtkWidget *w, GdkEvent *e, Client *c);
+static void tab_bar_click(Client *c);
 static void fill_tab_bar(Client *c);
 static void create_tab_bar(Client *c);
 
@@ -545,9 +545,9 @@ int get_font_size(GtkWidget *widget) {
 	GtkStyleContext *style_context = gtk_widget_get_style_context(widget);
 	PangoFontDescription *font_desc;
 	gtk_style_context_get (style_context,
-                       gtk_style_context_get_state (style_context),
-                       GTK_STYLE_PROPERTY_FONT, &font_desc,
-                       NULL);
+					   gtk_style_context_get_state (style_context),
+					   GTK_STYLE_PROPERTY_FONT, &font_desc,
+					   NULL);
 
 	int size = pango_font_description_get_size(font_desc);
 
@@ -557,25 +557,60 @@ int get_font_size(GtkWidget *widget) {
 	return size;
 }
 
-void tab_bar_click(GtkWidget *w, GdkEvent *e, Client *c) {
+void tab_bar_mouse_press(GtkWidget *w, GdkEvent *e, Client *c) {
+	if (c->tab_click_pos != -1) {
+		return;
+	}
+	
+	GdkEventButton *event_button = (GdkEventButton *)e;
+	
+	if (e->type != GDK_BUTTON_PRESS) {
+		g_print("not a press\n");
+		return;
+	}
+	
+	c->tab_click_pos = event_button->x;
+	
+	g_print("press\n");
+	
+}
+
+void tab_bar_mouse_release(GtkWidget *w, GdkEvent *e, Client *c) {
+	if (c->tab_click_pos == -1) {
+		return;
+	}
+	GdkEventButton *event_button = (GdkEventButton *)e;
+		
+	double x = event_button->x; // x position in the widgets coordinates
+	double y = event_button->y; // y position in the widgets coordinates
+	g_print("Mouse released at position: (%.0f, %.0f)\n", x, y);
+	
+	if (event_button->type != GDK_BUTTON_RELEASE) {
+		g_print("not a release\n");
+		return;
+	}
+	g_print("%i # %i\n", c->tab_click_pos, event_button->x_root);
+	if (ABS(c->tab_click_pos - x) < 10) {
+		tab_bar_click(c);
+	}
+	
+	c->tab_click_pos = -1;
+	
+}
+
+void tab_bar_mouse_move(GtkWidget *w, GdkEvent *e, Client *c) {
+	if (c->tab_click_pos == -1) {
+		return;
+	}
+	g_print("move\n");
+}
+
+void tab_bar_click(Client *c) {
 	if (g_list_length(c->tabs) == 0) {
 		return;
 	}
 	
-	if (e->type != GDK_BUTTON_PRESS) {
-		return;
-	}
-	
-	guint current_time = g_get_monotonic_time() / 1000;
-	
-	
-	if (current_time - c->last_tab_click_time < click_cooldown_ms) {
-		return;
-	}
-	
-	c->last_tab_click_time = current_time;
-	
-	GdkEventButton *event_button = (GdkEventButton *)e;
+	g_print("click\n");
 	
 	GtkAllocation allocation;
 	gtk_widget_get_allocation(GTK_WIDGET(c->win), &allocation);
@@ -583,7 +618,7 @@ void tab_bar_click(GtkWidget *w, GdkEvent *e, Client *c) {
 	
 	int n_tabs = g_list_length(c->tabs);
 	int tab_width = width / MAX(n_tabs + 1, min_tab_fraction_size);
-	int tab_index = (int)(event_button->x / tab_width);
+	int tab_index = (int)(c->tab_click_pos / tab_width);
 	
 	if (tab_index >= n_tabs) {
 		Arg new_tab_arg = {0};
@@ -593,7 +628,7 @@ void tab_bar_click(GtkWidget *w, GdkEvent *e, Client *c) {
 	
 	int x_width = MIN(get_font_size(c->tab_bar) * 5 / 2, tab_width / 4); 
 	
-	if (event_button->x - tab_index * tab_width > tab_width - x_width) {
+	if (c->tab_click_pos - tab_index * tab_width > tab_width - x_width) {
 		Arg close_arg = {.i = tab_index};
 		close_tab(c, &close_arg);
 		return;
@@ -922,6 +957,7 @@ newclient(Client *rc)
 	
 	add_tab(c, "about:blank");
 	c->selected_tab = 0;
+	c->tab_click_pos = -1;
 	
 	create_tab_bar(c);
 	
@@ -1875,7 +1911,11 @@ createwindow(Client *c)
 	g_signal_connect(G_OBJECT(w), "window-state-event",
 					 G_CALLBACK(winevent), c);
 	g_signal_connect(G_OBJECT(w), "button-press-event",
-					 G_CALLBACK(tab_bar_click), c);
+					 G_CALLBACK(tab_bar_mouse_press), c);
+	g_signal_connect(G_OBJECT(w), "button-release-event",
+					 G_CALLBACK(tab_bar_mouse_release), c);
+	g_signal_connect(G_OBJECT(w), "motion-notify-event",
+					 G_CALLBACK(tab_bar_mouse_move), c);
 
 	return w;
 }
