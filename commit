@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+
+cp -f config.h config.def.h && git add . && git commit -m "$(echo '' | marukuru -p 'commit msg : ')"

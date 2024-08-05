@@ -122,7 +122,7 @@ static WebKitFindOptions findopts = WEBKIT_FIND_OPTIONS_CASE_INSENSITIVE |
 			"| sed 's/.*https*:\\/\\/\\(www\\.\\)\\?//' && cat ~/.config/savoia/bookmarks) " \
 			"| awk '!seen[$0]++' > ~/.config/savoia/bookmarks.tmp && " \
 			"mv ~/.config/savoia/bookmarks.tmp ~/.config/savoia/bookmarks &&" \
-			"notify-send -u low -a 'savoia' 'added bookmark'", \
+			"notify-send -u normal -a 'savoia' 'added bookmark'", \
 			winid, r, NULL \
 		} \
 }
@@ -155,7 +155,7 @@ static SiteSpecific certs[] = {
  */
 static Key keys[] = {
 	/* modifier			  keyval		  function	arg */
-	{ MODKEY,				GDK_KEY_g,	  spawn,	  SETPROP("_SURF_URI", "_SURF_GO", PROMPT_GO) },
+	{ MODKEY,				GDK_KEY_Return, spawn,	  SETPROP("_SURF_URI", "_SURF_GO", PROMPT_GO) },
 	{ MODKEY,				GDK_KEY_f,	  spawn,	  SETPROP("_SURF_FIND", "_SURF_FIND", PROMPT_FIND) },
 	{ MODKEY,				GDK_KEY_slash,  spawn,	  SETPROP("_SURF_FIND", "_SURF_FIND", PROMPT_FIND) },
 	{ MODKEY,				GDK_KEY_b,	  spawn,	  BM_ADD("_SURF_URI") },
