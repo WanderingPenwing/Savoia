@@ -573,7 +573,7 @@ void tab_mouse_pos_index(GdkEvent *e, Client *c, int *index, bool *close_tab) {
 	
 	if (close_tab != NULL) {
 		int x_width = MIN(get_font_size(c->tab_bar) * 5 / 2, tab_width / 4);
-		*close_tab = (x - *index * tab_width > tab_width - x_width);
+		*close_tab = (x - *index * tab_width > tab_width - x_width && *index < n_tabs);
 	}
 }
 
@@ -1003,6 +1003,12 @@ loaduri(Client *c, const Arg *a)
 
 	if (g_strcmp0(uri, "") == 0)
 		return;
+	
+	Tab *selected_tab = g_list_nth_data(c->tabs, c->selected_tab);
+	if (selected_tab->suspended) {
+		webkit_web_view_load_alternate_html(c->view, suspended_html, uri, NULL);
+		return;
+	}
 
 	if (g_str_has_prefix(uri, "http://")  ||
 		g_str_has_prefix(uri, "https://") ||
