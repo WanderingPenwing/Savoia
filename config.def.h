@@ -11,7 +11,7 @@ static char *dldir		  = "~/dl/";
 	
 static int tab_bar_height = 27;
 static int tab_spacer_height = 4;
-static const char *tab_bar_color[] = {"#222222", "#318d56"};
+static const char *tab_bar_color[] = {"#222222", "#318d56", "#444444"};
 static int min_tab_fraction_size = 4; // 1/4th of the screen
 
 static SearchEngine searchengines[] = {
