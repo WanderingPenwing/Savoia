@@ -600,6 +600,9 @@ void tab_bar_mouse_release(GtkWidget *w, GdkEvent *e, Client *c) {
 	}
 	
 	c->tab_click_index = -1;
+	if (c->tab_drag) {
+		update_tab_bar(c);
+	}
 }
 
 void tab_bar_mouse_move(GtkWidget *w, GdkEvent *e, Client *c) {
@@ -614,18 +617,18 @@ void tab_bar_mouse_move(GtkWidget *w, GdkEvent *e, Client *c) {
 	}
 	
 	if (move_index < 0 || move_index >= g_list_length(c->tabs) ||
-        c->tab_click_index < 0 || c->tab_click_index >= g_list_length(c->tabs)) {
-        return;
-    }
+		c->tab_click_index < 0 || c->tab_click_index >= g_list_length(c->tabs)) {
+		return;
+	}
 	
 	GList *node1 = g_list_nth(c->tabs, c->tab_click_index);
-    GList *node2 = g_list_nth(c->tabs, move_index);
-    
-    if (node1 && node2) {
-        GList *temp = node1->data;
-        node1->data = node2->data;
-        node2->data = temp;
-    }
+	GList *node2 = g_list_nth(c->tabs, move_index);
+	
+	if (node1 && node2) {
+		GList *temp = node1->data;
+		node1->data = node2->data;
+		node2->data = temp;
+	}
 	
 	if (c->selected_tab == move_index) {
 		c->selected_tab = c->tab_click_index;
@@ -667,8 +670,9 @@ void tab_bar_click(Client *c, bool close) {
 }
 
 void fill_tab_bar(Client *c) {
-	GdkRGBA fg_color;
+	GdkRGBA fg_color, light_color;
 	gdk_rgba_parse(&fg_color, tab_bar_color[1]);
+	gdk_rgba_parse(&light_color, tab_bar_color[2]);
 	
 	int tab_index = 0;
 	// Add tabs to the tab bar
@@ -695,6 +699,8 @@ void fill_tab_bar(Client *c) {
 		
 		if (tab_index == c->selected_tab) {
 			gtk_widget_override_background_color(tab_box, GTK_STATE_FLAG_NORMAL, &fg_color);
+		} else if (tab_index == c->tab_click_index) {
+			gtk_widget_override_background_color(tab_box, GTK_STATE_FLAG_NORMAL, &light_color);
 		}
 		
 		gtk_grid_attach_next_to(GTK_GRID(c->tab_bar), tab_box, NULL, GTK_POS_RIGHT, 1, 1);  // Pack the box into the grid
