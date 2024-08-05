@@ -150,7 +150,7 @@ typedef struct Client {
 	GList *tabs;
 	guint selected_tab;
 	GtkWidget *tab_bar;
-	int tab_click_pos; 
+	int tab_click_index; 
 } Client;
 
 typedef struct {
@@ -557,49 +557,49 @@ int get_font_size(GtkWidget *widget) {
 	return size;
 }
 
-void tab_bar_mouse_press(GtkWidget *w, GdkEvent *e, Client *c) {
-	if (c->tab_click_pos != -1) {
-		return;
-	}
-	
+int tab_mouse_pos_index(GdkEvent *e, Client *c) {
 	GdkEventButton *event_button = (GdkEventButton *)e;
+	double x = event_button->x;
 	
-	if (e->type != GDK_BUTTON_PRESS) {
-		g_print("not a press\n");
+	GtkAllocation allocation;
+	gtk_widget_get_allocation(GTK_WIDGET(c->win), &allocation);
+	int width = allocation.width;
+	
+	int n_tabs = g_list_length(c->tabs);
+	int tab_width = width / MAX(n_tabs + 1, min_tab_fraction_size);
+	
+	return (int)(x / tab_width);
+}
+
+void tab_bar_mouse_press(GtkWidget *w, GdkEvent *e, Client *c) {
+	if (c->tab_click_index != -1) {
 		return;
 	}
 	
-	c->tab_click_pos = event_button->x;
+	c->tab_click_index = tab_mouse_pos_index(e, c);
 	
 	g_print("press\n");
 	
 }
 
 void tab_bar_mouse_release(GtkWidget *w, GdkEvent *e, Client *c) {
-	if (c->tab_click_pos == -1) {
+	if (c->tab_click_index == -1) {
 		return;
 	}
-	GdkEventButton *event_button = (GdkEventButton *)e;
-		
-	double x = event_button->x; // x position in the widgets coordinates
-	double y = event_button->y; // y position in the widgets coordinates
-	g_print("Mouse released at position: (%.0f, %.0f)\n", x, y);
 	
-	if (event_button->type != GDK_BUTTON_RELEASE) {
-		g_print("not a release\n");
-		return;
-	}
-	g_print("%i # %i\n", c->tab_click_pos, event_button->x_root);
-	if (ABS(c->tab_click_pos - x) < 10) {
+	int press_index = tab_mouse_pos_index(e, c);
+	
+	g_print("%i # %i\n", c->tab_click_index, press_index);
+	if (c->tab_click_index == press_index) {
 		tab_bar_click(c);
 	}
 	
-	c->tab_click_pos = -1;
+	c->tab_click_index = -1;
 	
 }
 
 void tab_bar_mouse_move(GtkWidget *w, GdkEvent *e, Client *c) {
-	if (c->tab_click_pos == -1) {
+	if (c->tab_click_index == -1) {
 		return;
 	}
 	g_print("move\n");
@@ -612,33 +612,27 @@ void tab_bar_click(Client *c) {
 	
 	g_print("click\n");
 	
-	GtkAllocation allocation;
-	gtk_widget_get_allocation(GTK_WIDGET(c->win), &allocation);
-	int width = allocation.width;
-	
 	int n_tabs = g_list_length(c->tabs);
-	int tab_width = width / MAX(n_tabs + 1, min_tab_fraction_size);
-	int tab_index = (int)(c->tab_click_pos / tab_width);
 	
-	if (tab_index >= n_tabs) {
+	if (c->tab_click_index >= n_tabs) {
 		Arg new_tab_arg = {0};
 		new_tab(c, &new_tab_arg);
 		return;
 	}
 	
-	int x_width = MIN(get_font_size(c->tab_bar) * 5 / 2, tab_width / 4); 
+//	int x_width = MIN(get_font_size(c->tab_bar) * 5 / 2, tab_width / 4); 
+//	
+//	if (c->tab_click_pos - tab_index * tab_width > tab_width - x_width) {
+//		Arg close_arg = {.i = tab_index};
+//		close_tab(c, &close_arg);
+//		return;
+//	}
 	
-	if (c->tab_click_pos - tab_index * tab_width > tab_width - x_width) {
-		Arg close_arg = {.i = tab_index};
-		close_tab(c, &close_arg);
+	if (c->selected_tab == c->tab_click_index) {
 		return;
 	}
 	
-	if (c->selected_tab == tab_index) {
-		return;
-	}
-	
-	c->selected_tab = tab_index;
+	c->selected_tab = c->tab_click_index;
 	update_tab_bar(c);
 	suspend_tab(c);
 }
@@ -957,7 +951,7 @@ newclient(Client *rc)
 	
 	add_tab(c, "about:blank");
 	c->selected_tab = 0;
-	c->tab_click_pos = -1;
+	c->tab_click_index = -1;
 	
 	create_tab_bar(c);
 	
