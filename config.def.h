@@ -3,6 +3,7 @@ static int surfuseragent	= 1;  /* Append Surf version to default WebKit user age
 static char *fulluseragent  = ""; /* Or override the whole user agent string */
 static char *scriptfile	 = "~/.config/surf/script.js";
 static char *styledir	   = "~/.config/surf/styles/";
+static char *tabstyle	   = "~/.config/surf/styles/tab_bar.css";
 static char *certdir		= "~/.config/surf/certificates/";
 static char *dlstatus	   = "~/.config/surf/dlstatus/";
 static char *cachedir	   = "/tmp/cache";

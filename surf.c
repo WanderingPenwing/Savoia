@@ -297,22 +297,35 @@ static void playexternal(Client *c, const Arg *a);
 
 /* download-console */
 static void downloadstarted(WebKitWebContext *wc, WebKitDownload *d,
-                            Client *c);
+							Client *c);
 static void downloadfailed(WebKitDownload *d, GParamSpec *ps, void *arg);
 static void downloadfinished(WebKitDownload *d, GParamSpec *ps, void *arg);
 static gboolean decidedestination(WebKitDownload *d,
-                                  gchar *suggested_filename, void *arg);
+								  gchar *suggested_filename, void *arg);
 static void printprogress(WebKitDownload *d, GParamSpec *ps, void *arg);
 static void logdownload(WebKitDownload *d, gchar *tail);
 static void spawndls(Client *c, const Arg *a);
 
 /* tab_bar */
+static void free_tab(Tab *tab);
+static void add_tab(Client *client, const gchar *uri);
+static void remove_tab(Client *client, Tab *tab);
+static void update_tab_bar(Client *c);
+static void free_all_tabs(Client *client);
+static void reload_tab(Client *c);
 static void switch_tab(Client *c, const Arg *a);
 static void move_tab(Client *c, const Arg *a);
-static void new_tab(Client *c, const Arg *a);
+static void update_tab_uri(Client *c);
+static void update_tab_title(Client *c);
+static void unsuspend_tab(Client *c);
+static void suspend_tab(Client *c);
 static void close_tab(Client *c, const Arg *a);
-
+static void new_tab(Client *c, const Arg *a);
+static int  get_font_size(GtkWidget *widget);
+static void tab_bar_click(GtkWidget *w, GdkEvent *e, Client *c);
 static void fill_tab_bar(Client *c);
+static void create_tab_bar(Client *c);
+
 
 static char winid[64];
 static char togglestats[11];
@@ -377,13 +390,12 @@ static ParamName loadfinished[] = {
 /* configuration, allows nested code to access above variables */
 #include "config.h"
 
-static gboolean tab_click_received = FALSE;
-
 // Function to free a tab
 void free_tab(Tab *tab) {
 	g_free(tab->title);
 	g_free(tab->uri);
 	g_free(tab);
+	//intentional_error();
 }
 
 // Function to add a tab to the clients tab list
@@ -402,7 +414,7 @@ void remove_tab(Client *client, Tab *tab) {
 }
 
 void update_tab_bar(Client *c) {
-	gtk_grid_remove_row(c->tab_bar, 0);
+	gtk_grid_remove_row(GTK_GRID(c->tab_bar), 0);
 	fill_tab_bar(c);
 }
 
@@ -465,7 +477,7 @@ void update_tab_uri(Client *c) {
 	if (selected_tab->suspended) {
 		return;
 	}
-	char *uri = geturi(c);
+	const char *uri = geturi(c);
 	selected_tab->uri = g_strdup(uri);
 }
 
@@ -530,9 +542,14 @@ void new_tab(Client *c, const Arg *a) {
 }
 
 int get_font_size(GtkWidget *widget) {
-	GtkStyleContext *context = gtk_widget_get_style_context(widget);
-	PangoFontDescription *desc = gtk_style_context_get_font(context, GTK_STATE_FLAG_NORMAL);
-	int size = pango_font_description_get_size(desc);
+	GtkStyleContext *style_context = gtk_widget_get_style_context(widget);
+	PangoFontDescription *font_desc;
+	gtk_style_context_get (style_context,
+                       gtk_style_context_get_state (style_context),
+                       GTK_STYLE_PROPERTY_FONT, &font_desc,
+                       NULL);
+
+	int size = pango_font_description_get_size(font_desc);
 
 	// Convert size from Pango units to points
 	size = size / PANGO_SCALE;
@@ -704,7 +721,7 @@ setup(void)
 	scriptfile = buildfile(scriptfile);
 	certdir	= buildpath(certdir);
 	dlstatus   = buildpath(dlstatus);
-	dldir      = buildpath(dldir);
+	dldir	  = buildpath(dldir);
 	if (curconfig[Ephemeral].val.i)
 		cachedir = NULL;
 	else
@@ -1616,7 +1633,7 @@ readsock(GIOChannel *s, GIOCondition ioc, gpointer unused)
 		return TRUE;
 	}
 	if (msgsz < 2) {
-		fprintf(stderr, "surf: message too short: %d\n", msgsz);
+		fprintf(stderr, "surf: message too short: %lu\n", (unsigned long)msgsz);
 		return TRUE;
 	}
 
@@ -2266,7 +2283,7 @@ msgext(Client *c, char type, const Arg *a)
 	if (spair[0] < 0)
 		return;
 
-	if ((ret = snprintf(msg, sizeof(msg), "%c%c%c", c->pageid, type, a->i))
+	if ((ret = snprintf(msg, sizeof(msg), "%lu%c%c", c->pageid, type, a->i))
 		>= sizeof(msg)) {
 		fprintf(stderr, "surf: message too long: %d\n", ret);
 		return;
@@ -2396,7 +2413,7 @@ clicknewwindow(Client *c, const Arg *a, WebKitHitTestResult *h)
 void
 clicknewtab(Client *c, const Arg *a, WebKitHitTestResult *h)
 {
-	gchar *uri = webkit_hit_test_result_get_link_uri(h);
+	const gchar *uri = webkit_hit_test_result_get_link_uri(h);
 	add_tab(c, uri);
 }
 
@@ -2428,13 +2445,13 @@ downloadstarted(WebKitWebContext *wc, WebKitDownload *d, Client *c)
 {
 	webkit_download_set_allow_overwrite(d, TRUE);
 	g_signal_connect(G_OBJECT(d), "decide-destination",
-	                 G_CALLBACK(decidedestination), NULL);
+					 G_CALLBACK(decidedestination), NULL);
 	g_signal_connect(G_OBJECT(d), "notify::estimated-progress",
-	                 G_CALLBACK(printprogress), NULL);
+					 G_CALLBACK(printprogress), NULL);
 	g_signal_connect(G_OBJECT(d), "failed",
-	                 G_CALLBACK(downloadfailed), NULL);
+					 G_CALLBACK(downloadfailed), NULL);
 	g_signal_connect(G_OBJECT(d), "finished",
-	                 G_CALLBACK(downloadfinished), NULL);
+					 G_CALLBACK(downloadfinished), NULL);
 }
 
 void
@@ -2477,11 +2494,11 @@ logdownload(WebKitDownload *d, gchar *tail)
 		perror("dlstatus");
 	} else {
 		fprintf(stat, "%s: %d%% (%d.%ds)%s\n",
-		        filename,
-		        (int)(webkit_download_get_estimated_progress(d) * 100),
-		        (int) webkit_download_get_elapsed_time(d),
-		        (int)(webkit_download_get_elapsed_time(d) * 100),
-		        tail);
+				filename,
+				(int)(webkit_download_get_estimated_progress(d) * 100),
+				(int) webkit_download_get_elapsed_time(d),
+				(int)(webkit_download_get_elapsed_time(d) * 100),
+				tail);
 		fclose(stat);
 	}
 
