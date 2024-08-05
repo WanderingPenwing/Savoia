@@ -1,11 +1,13 @@
 /* modifier 0 means no modifier */
 static int surfuseragent	= 1;  /* Append Surf version to default WebKit user agent */
 static char *fulluseragent  = ""; /* Or override the whole user agent string */
-static char *scriptfile	 = "~/.surf/script.js";
-static char *styledir	   = "~/.surf/styles/";
-static char *certdir		= "~/.surf/certificates/";
+static char *scriptfile	 = "~/.config/surf/script.js";
+static char *styledir	   = "~/.config/surf/styles/";
+static char *certdir		= "~/.config/surf/certificates/";
+static char *dlstatus	   = "~/.config/surf/dlstatus/";
 static char *cachedir	   = "/tmp/cache";
 static char *cookiefile	 = "/tmp/cookies.txt";
+static char *dldir		  = "~/dl/";
 	
 static int tab_bar_height = 27;
 static int tab_spacer_height = 4;
@@ -89,13 +91,13 @@ static WebKitFindOptions findopts = WEBKIT_FIND_OPTIONS_CASE_INSENSITIVE |
 	} \
 }
 
-/* DOWNLOAD(URI, referer) */
-#define DOWNLOAD(u, r) { \
-		.v = (const char *[]){ "st", "-e", "/bin/sh", "-c",\
-			 "curl -g -L -J -O -A \"$1\" -b \"$2\" -c \"$2\"" \
-			 " -e \"$3\" \"$4\"; read", \
-			 "surf-download", useragent, cookiefile, r, u, NULL \
-		} \
+#define DLSTATUS { \
+	.v = (const char *[]){ "kodama", "-e", "/bin/sh", "-c",\
+		"while true; do cat $1/* 2>/dev/null || echo \"nothing to download\";"\
+		"A=; read A; "\
+		"if [ $A = \"clean\" ]; then rm $1/*; fi; clear; done",\
+		"surf-dlstatus", dlstatus, NULL \
+	} \
 }
 
 /* PLUMB(URI) */
@@ -159,7 +161,8 @@ static Key keys[] = {
 	{ MODKEY,				GDK_KEY_f,	  spawn,	  SETPROP("_SURF_FIND", "_SURF_FIND", PROMPT_FIND) },
 	{ MODKEY,				GDK_KEY_slash,  spawn,	  SETPROP("_SURF_FIND", "_SURF_FIND", PROMPT_FIND) },
 	{ MODKEY,				GDK_KEY_b,	  spawn,	  BM_ADD("_SURF_URI") },
-	{ MODKEY,                GDK_KEY_w,      playexternal, { 0 } },
+	{ MODKEY,				GDK_KEY_w,	  playexternal, { 0 } },
+	{ MODKEY,				GDK_KEY_d,	  spawndls,   { 0 } },
 
 	{ MODKEY,				GDK_KEY_i,	  insert,	 { .i = 1 } },
 	{ MODKEY,				GDK_KEY_Escape, insert,	 { .i = 0 } },	
