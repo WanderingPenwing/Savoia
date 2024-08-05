@@ -1,11 +1,10 @@
 /* modifier 0 means no modifier */
 static int surfuseragent	= 1;  /* Append Surf version to default WebKit user agent */
 static char *fulluseragent  = ""; /* Or override the whole user agent string */
-static char *scriptfile	 = "~/.config/surf/script.js";
-static char *styledir	   = "~/.config/surf/styles/";
-static char *tabstyle	   = "~/.config/surf/styles/tab_bar.css";
-static char *certdir		= "~/.config/surf/certificates/";
-static char *dlstatus	   = "~/.config/surf/dlstatus/";
+static char *scriptfile	 = "~/.config/savoia/script.js";
+static char *styledir	   = "~/.config/savoia/styles/";
+static char *certdir		= "~/.config/savoia/certificates/";
+static char *dlstatus	   = "~/.config/savoia/dlstatus/";
 static char *cachedir	   = "/tmp/cache";
 static char *cookiefile	 = "/tmp/cookies.txt";
 static char *dldir		  = "~/dl/";
@@ -13,9 +12,7 @@ static char *dldir		  = "~/dl/";
 static int tab_bar_height = 27;
 static int tab_spacer_height = 4;
 static const char *tab_bar_color[] = {"#222222", "#318d56"};
-static const char tabfont[] = "Mononoki Nerd Font:size=16";
 static int min_tab_fraction_size = 4; // 1/4th of the screen
-static int click_cooldown_ms = 200;
 
 static SearchEngine searchengines[] = {
 	{ " ", "https://web.penwing.org/search?q=%s" },
@@ -85,7 +82,7 @@ static WebKitFindOptions findopts = WEBKIT_FIND_OPTIONS_CASE_INSENSITIVE |
 	.v = (const char *[]){ "/bin/sh", "-c", \
 		 "prop=\"$(printf '%b' \"$(xprop -id $1 "r" " \
 		 "| sed -e 's/^"r"(UTF8_STRING) = \"\\(.*\\)\"/\\1/' " \
-		 "	  -e 's/\\\\\\(.\\)/\\1/g' && cat ~/.config/surf/bookmarks)\" " \
+		 "	  -e 's/\\\\\\(.\\)/\\1/g' && cat ~/.config/savoia/bookmarks)\" " \
 		 "| marukuru -p '"p"' -w $1)\" " \
 		 "&& xprop -id $1 -f "s" 8u -set "s" \"$prop\"", \
 		 "surf-setprop", winid, NULL \
@@ -122,9 +119,9 @@ static WebKitFindOptions findopts = WEBKIT_FIND_OPTIONS_CASE_INSENSITIVE |
 #define BM_ADD(r) {\
 		.v = (const char *[]){ "/bin/sh", "-c", \
 			"(echo $(xprop -id $0 $1) | cut -d '\"' -f2 " \
-			"| sed 's/.*https*:\\/\\/\\(www\\.\\)\\?//' && cat ~/.config/surf/bookmarks) " \
-			"| awk '!seen[$0]++' > ~/.config/surf/bookmarks.tmp && " \
-			"mv ~/.config/surf/bookmarks.tmp ~/.config/surf/bookmarks &&" \
+			"| sed 's/.*https*:\\/\\/\\(www\\.\\)\\?//' && cat ~/.config/savoia/bookmarks) " \
+			"| awk '!seen[$0]++' > ~/.config/savoia/bookmarks.tmp && " \
+			"mv ~/.config/savoia/bookmarks.tmp ~/.config/savoia/bookmarks &&" \
 			"notify-send -u low -a 'savoia' 'added bookmark'", \
 			winid, r, NULL \
 		} \

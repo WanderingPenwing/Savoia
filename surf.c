@@ -151,6 +151,7 @@ typedef struct Client {
 	guint selected_tab;
 	GtkWidget *tab_bar;
 	int tab_click_index; 
+	bool tab_drag;
 } Client;
 
 typedef struct {
@@ -582,9 +583,7 @@ void tab_bar_mouse_press(GtkWidget *w, GdkEvent *e, Client *c) {
 	}
 	
 	tab_mouse_pos_index(e, c, &c->tab_click_index, NULL);
-	
-	g_print("press\n");
-	
+	c->tab_drag = false;
 }
 
 void tab_bar_mouse_release(GtkWidget *w, GdkEvent *e, Client *c) {
@@ -596,28 +595,53 @@ void tab_bar_mouse_release(GtkWidget *w, GdkEvent *e, Client *c) {
 	bool close_tab_flag;
 	tab_mouse_pos_index(e, c, &press_index, &close_tab_flag);
 	
-	g_print("%i # %i\n", c->tab_click_index, press_index);
-	if (c->tab_click_index == press_index) {
+	if (!c->tab_drag) {
 		tab_bar_click(c, close_tab_flag);
 	}
 	
 	c->tab_click_index = -1;
-	
 }
 
 void tab_bar_mouse_move(GtkWidget *w, GdkEvent *e, Client *c) {
 	if (c->tab_click_index == -1) {
 		return;
 	}
-	g_print("move\n");
+	int move_index;
+	tab_mouse_pos_index(e, c, &move_index, NULL);
+	
+	if (move_index == c->tab_click_index) {
+		return;
+	}
+	
+	if (move_index < 0 || move_index >= g_list_length(c->tabs) ||
+        c->tab_click_index < 0 || c->tab_click_index >= g_list_length(c->tabs)) {
+        return;
+    }
+	
+	GList *node1 = g_list_nth(c->tabs, c->tab_click_index);
+    GList *node2 = g_list_nth(c->tabs, move_index);
+    
+    if (node1 && node2) {
+        GList *temp = node1->data;
+        node1->data = node2->data;
+        node2->data = temp;
+    }
+	
+	if (c->selected_tab == move_index) {
+		c->selected_tab = c->tab_click_index;
+	} else if (c->selected_tab == c->tab_click_index) {
+		c->selected_tab = move_index;
+	} 
+	
+	c->tab_click_index = move_index;
+	c->tab_drag = true;
+	update_tab_bar(c);
 }
 
 void tab_bar_click(Client *c, bool close) {
 	if (g_list_length(c->tabs) == 0) {
 		return;
 	}
-	
-	g_print("click\n");
 	
 	if (close) {
 		Arg close_arg = {.i = c->tab_click_index};
