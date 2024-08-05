@@ -158,8 +158,7 @@ static Key keys[] = {
 	{ MODKEY,				GDK_KEY_g,	  spawn,	  SETPROP("_SURF_URI", "_SURF_GO", PROMPT_GO) },
 	{ MODKEY,				GDK_KEY_f,	  spawn,	  SETPROP("_SURF_FIND", "_SURF_FIND", PROMPT_FIND) },
 	{ MODKEY,				GDK_KEY_slash,  spawn,	  SETPROP("_SURF_FIND", "_SURF_FIND", PROMPT_FIND) },
-	{ MODKEY,				GDK_KEY_b,	  spawn,	  BM_ADD("_SURF_URI") },
-	{ MODKEY,                GDK_KEY_w,      playexternal, { 0 } },
+	{ MODKEY,				GDK_KEY_m,	  spawn,	  BM_ADD("_SURF_URI") },
 
 	{ MODKEY,				GDK_KEY_i,	  insert,	 { .i = 1 } },
 	{ MODKEY,				GDK_KEY_Escape, insert,	 { .i = 0 } },	
@@ -172,6 +171,8 @@ static Key keys[] = {
 	/* vertical and horizontal scrolling, in viewport percentage */
 	{ MODKEY,				GDK_KEY_j,	  scrollv,	{ .i = +10 } },
 	{ MODKEY,				GDK_KEY_k,	  scrollv,	{ .i = -10 } },
+	{ MODKEY,				GDK_KEY_space,  scrollv,	{ .i = +50 } },
+	{ MODKEY,				GDK_KEY_b,	  scrollv,	{ .i = -50 } },
 	{ MODKEY,				GDK_KEY_o,	  scrollh,	{ .i = +10 } },
 	{ MODKEY,				GDK_KEY_u,	  scrollh,	{ .i = -10 } },
 
@@ -188,7 +189,7 @@ static Key keys[] = {
 	{ MODKEY|GDK_SHIFT_MASK, GDK_KEY_a,	  togglecookiepolicy, { 0 } },
 	{ MODKEY|GDK_SHIFT_MASK, GDK_KEY_o,	  toggleinspector, { 0 } },
 
-	{ MODKEY|GDK_SHIFT_MASK, GDK_KEY_b,	  toggle,	 { .i = CaretBrowsing } },
+	{ MODKEY|GDK_SHIFT_MASK, GDK_KEY_c,	  toggle,	 { .i = CaretBrowsing } },
 	{ MODKEY|GDK_SHIFT_MASK, GDK_KEY_f,	  toggle,	 { .i = FrameFlattening } },
 	{ MODKEY|GDK_SHIFT_MASK, GDK_KEY_g,	  toggle,	 { .i = Geolocation } },
 	{ MODKEY|GDK_SHIFT_MASK, GDK_KEY_s,	  toggle,	 { .i = JavaScript } },

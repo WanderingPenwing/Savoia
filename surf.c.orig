@@ -296,8 +296,6 @@ static void clicknewwindow(Client *c, const Arg *a, WebKitHitTestResult *h);
 static void clicknewtab(Client *c, const Arg *a, WebKitHitTestResult *h);
 static void clickexternplayer(Client *c, const Arg *a, WebKitHitTestResult *h);
 
-static void playexternal(Client *c, const Arg *a);
-
 static void switch_tab(Client *c, const Arg *a);
 static void move_tab(Client *c, const Arg *a);
 static void new_tab(Client *c, const Arg *a);
@@ -521,14 +519,14 @@ void new_tab(Client *c, const Arg *a) {
 }
 
 int get_font_size(GtkWidget *widget) {
-	GtkStyleContext *context = gtk_widget_get_style_context(widget);
-	PangoFontDescription *desc = gtk_style_context_get_font(context, GTK_STATE_FLAG_NORMAL);
-	int size = pango_font_description_get_size(desc);
+    GtkStyleContext *context = gtk_widget_get_style_context(widget);
+    PangoFontDescription *desc = gtk_style_context_get_font(context, GTK_STATE_FLAG_NORMAL);
+    int size = pango_font_description_get_size(desc);
 
-	// Convert size from Pango units to points
-	size = size / PANGO_SCALE;
+    // Convert size from Pango units to points
+    size = size / PANGO_SCALE;
 
-	return size;
+    return size;
 }
 
 void tab_bar_click(GtkWidget *w, GdkEvent *e, Client *c) {
@@ -544,8 +542,8 @@ void tab_bar_click(GtkWidget *w, GdkEvent *e, Client *c) {
 	
 	
 	if (current_time - c->last_tab_click_time < click_cooldown_ms) {
-		return;
-	}
+        return;
+    }
 	
 	c->last_tab_click_time = current_time;
 	
@@ -2415,18 +2413,6 @@ clickexternplayer(Client *c, const Arg *a, WebKitHitTestResult *h)
 	Arg arg;
 
 	arg = (Arg)VIDEOPLAY(webkit_hit_test_result_get_media_uri(h));
-	spawn(c, &arg);
-}
-
-void
-playexternal(Client *c, const Arg *a)
-{
-	Arg arg;
-
-	arg = (Arg)VIDEOPLAY(geturi(c));
-	
-	suspend_tab(c);
-	
 	spawn(c, &arg);
 }
 
