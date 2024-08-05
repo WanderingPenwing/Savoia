@@ -600,9 +600,8 @@ void tab_bar_mouse_release(GtkWidget *w, GdkEvent *e, Client *c) {
 	}
 	
 	c->tab_click_index = -1;
-	if (c->tab_drag) {
-		update_tab_bar(c);
-	}
+	
+	update_tab_bar(c);
 }
 
 void tab_bar_mouse_move(GtkWidget *w, GdkEvent *e, Client *c) {
