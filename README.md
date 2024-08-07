@@ -16,7 +16,7 @@ savoia is a simple Web browser based on WebKit/GTK+.
 - suspend
 
 # Requirements
-In order to build surf you need GTK+ and Webkit/GTK+ header files.
+In order to build surf you can use or take inspiration from the shell.nix at your disposal
 
 # Installation
 Edit config.mk to match your local setup (surf is installed into
