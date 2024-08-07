@@ -19,6 +19,14 @@ static SearchEngine searchengines[] = {
 	{ "-", "https://searx.ox2.fr/search?q=%s" },
 };
 
+/* Regular expressions to match URLs that should not be loaded */
+char *filter_patterns[] = {
+	#include "filters_compiled"
+};
+/* Define this for verbose filtering */
+// #define FILTER_VERBOSE
+
+
 /* Webkit default features */
 /* Highest priority value will be used.
  * Default parameters are priority 0

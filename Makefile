@@ -22,10 +22,17 @@ options:
 surf: $(OBJ)
 	$(CC) $(SURFLDFLAGS) $(LDFLAGS) -o $@ $(OBJ) $(LIBS)
 
-$(OBJ) $(WOBJ): config.h config.mk
+$(OBJ) $(WOBJ): config.h config.mk filters_compiled
 
 config.h:
 	cp config.def.h $@
+
+filters_compiled: filters
+	sed -e '/^$$/d' -e 's|\\|\\\\|g' -e 's|$$|",|' -e 's|^|"|' < filters > $@
+
+filters:
+	@echo creating $@ from filters.def
+	@cp filters.def $@
 
 $(OBJ): $(SRC)
 	$(CC) $(SURFCFLAGS) $(CFLAGS) -c $(SRC)
@@ -41,7 +48,7 @@ clean:
 	rm -f $(WLIB) $(WOBJ)
 
 distclean: clean
-	rm -f config.h surf-$(VERSION).tar.gz
+	rm -f config.h surf-$(VERSION).tar.gz filters_compiled
 
 dist: distclean
 	mkdir -p surf-$(VERSION)

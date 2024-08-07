@@ -70,6 +70,8 @@
 #define LENGTH(x)			   (sizeof(x) / sizeof(x[0]))
 #define CLEANMASK(mask)		 (mask & (MODKEY|GDK_SHIFT_MASK))
 
+regex_t *filter_expressions;
+
 enum { AtomFind, AtomGo, AtomUri, AtomUTF8, AtomLast };
 
 enum {
@@ -286,6 +288,10 @@ static void togglecookiepolicy(Client *c, const Arg *a);
 static void toggleinspector(Client *c, const Arg *a);
 static void find(Client *c, const Arg *a);
 static void insert(Client *c, const Arg *a);
+
+/* filter url */
+static bool filter_init(void);
+static bool filter_request(const gchar *uri);
 
 /* Buttons */
 static void clicknavigate(Client *c, const Arg *a, WebKitHitTestResult *h);
@@ -744,6 +750,49 @@ die(const char *errstr, ...)
 	   exit(1);
 }
 
+static bool
+filter_init(void) {
+	bool errors = false;
+	char *errorbuf;
+
+	errorbuf = malloc(sizeof(char) * BUFSIZ);
+	filter_expressions = malloc(sizeof(regex_t) * LENGTH(filter_patterns));
+
+	for (off_t idx = 0; idx < LENGTH(filter_patterns); idx++) {
+		char *pat = filter_patterns[idx];
+		int err = regcomp(&filter_expressions[idx], pat,
+				            REG_EXTENDED | REG_ICASE | REG_NOSUB);
+		if (err != 0) {
+			/* regerror always ends messages with 0x00 */
+			(void) regerror(err, &filter_expressions[idx], errorbuf, BUFSIZ);
+			fprintf(stderr, "Failed to compile \"%s\": %s\n", pat, errorbuf);
+			errors = true;
+		}
+	}
+
+	free(errorbuf);
+	return !errors;
+}
+
+static bool
+filter_request(const gchar *uri) {
+	if (!strcmp(uri, "about:blank"))
+		return false;
+	for (off_t idx = 0; idx < LENGTH(filter_patterns); idx++) {
+		if (regexec(&filter_expressions[idx], uri, 0, NULL, 0) == REG_NOMATCH) {
+			continue;
+		}
+#ifdef FILTER_VERBOSE
+		fprintf(stderr, "filtering \"%s\"\n", uri);
+#endif
+		return true;
+	}
+#ifdef FILTER_VERBOSE
+	fprintf(stderr, "not filtering \"%s\"\n", uri);
+#endif
+	return false;
+}
+
 void
 usage(void)
 {
@@ -848,6 +897,10 @@ setup(void)
 			if (defconfig[j].prio >= uriparams[i].config[j].prio)
 				uriparams[i].config[j] = defconfig[j];
 		}
+	}
+
+	if (!filter_init()) {
+		die("Failed to compile one or more filter expressions\n");
 	}
 }
 
@@ -2225,7 +2278,7 @@ decideresource(WebKitPolicyDecision *d, Client *c)
 		webkit_response_policy_decision_get_response(r);
 	const gchar *uri = webkit_uri_response_get_uri(res);
 
-	if (g_str_has_suffix(uri, "/favicon.ico")) {
+	if (filter_request(uri)) {
 		webkit_policy_decision_ignore(d);
 		return;
 	}
