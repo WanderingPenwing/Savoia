@@ -527,10 +527,10 @@ void close_tab(Client *c, const Arg *a) {
 	
 	if (index <= c->selected_tab && c->selected_tab > 0) {
 		c->selected_tab -= 1;
+		suspend_tab(c);
 	}
 	
 	update_tab_bar(c);
-	suspend_tab(c);
 }
 
 void new_tab(Client *c, const Arg *a) {
@@ -1007,6 +1007,11 @@ loaduri(Client *c, const Arg *a)
 	Tab *selected_tab = g_list_nth_data(c->tabs, c->selected_tab);
 	if (selected_tab->suspended) {
 		webkit_web_view_load_alternate_html(c->view, suspended_html, uri, NULL);
+		return;
+	}
+
+	if (g_strcmp0(uri, keybinds_url) == 0) {
+		webkit_web_view_load_alternate_html(c->view, keybinds_html, uri, NULL);
 		return;
 	}
 
@@ -2496,7 +2501,7 @@ clickexternplayer(Client *c, const Arg *a, WebKitHitTestResult *h)
 {
 	Arg arg;
 
-	arg = (Arg)VIDEOPLAY(webkit_hit_test_result_get_media_uri(h));
+	arg = (Arg)VIDEOPLAY(webkit_hit_test_result_get_link_uri(h));
 	spawn(c, &arg);
 }
 
