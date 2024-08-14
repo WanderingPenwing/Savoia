@@ -154,6 +154,7 @@ typedef struct Client {
 	GtkWidget *tab_bar;
 	int tab_click_index; 
 	bool tab_drag;
+	pid_t subprocess_pid;
 } Client;
 
 typedef struct {
@@ -651,6 +652,13 @@ void tab_bar_click(Client *c, bool close) {
 		return;
 	}
 	
+	int status;
+    pid_t result = waitpid(c->subprocess_pid, &status, WNOHANG);
+	
+	if (result == 0 && c->subprocess_pid != 0) {
+		return;
+	}
+	
 	if (close) {
 		Arg close_arg = {.i = c->tab_click_index};
 		close_tab(c, &close_arg);
@@ -761,7 +769,7 @@ filter_init(void) {
 	for (off_t idx = 0; idx < LENGTH(filter_patterns); idx++) {
 		char *pat = filter_patterns[idx];
 		int err = regcomp(&filter_expressions[idx], pat,
-				            REG_EXTENDED | REG_ICASE | REG_NOSUB);
+							REG_EXTENDED | REG_ICASE | REG_NOSUB);
 		if (err != 0) {
 			/* regerror always ends messages with 0x00 */
 			(void) regerror(err, &filter_expressions[idx], errorbuf, BUFSIZ);
@@ -1556,7 +1564,8 @@ newwindow(Client *c, const Arg *a, int noembed)
 void
 spawn(Client *c, const Arg *a)
 {
-	if (fork() == 0) {
+	c->subprocess_pid = fork();
+	if (c->subprocess_pid == 0) {
 		if (dpy)
 			close(ConnectionNumber(dpy));
 		close(spair[0]);
